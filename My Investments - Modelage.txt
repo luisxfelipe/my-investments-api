@@ -1,0 +1,63 @@
+# Sistema "My Investments" - Modelagem Completa Atualizada
+## Descrição do Sistema
+O sistema "My Investments" é uma aplicação para gerenciamento de investimentos pessoais que permite ao usuário cadastrar, acompanhar e analisar seus investimentos em diferentes plataformas financeiras.
+
+O sistema possibilita:
+
+- Cadastro de diferentes tipos de ativos (ações, FIIs, criptomoedas, renda fixa, etc.)
+- Registro de transações (compras, vendas, dividendos, etc.)
+- Acompanhamento de investimentos em múltiplas plataformas (corretoras, bancos, exchanges)
+- Organização de investimentos em "caixinhas" com objetivos específicos (ex: comprar uma moto, viagem)
+- Cálculo de rentabilidade e acompanhamento de desempenho
+Futuramente, o sistema poderá ser expandido para incluir dashboards, conexão com APIs para acompanhamento de ativos financeiros (como a API da Binance) e integração com robôs de investimento em criptomoedas.
+
+## Modelagem do Banco de Dados
+### 1. User (Usuários)
+- id : INT - Identificador único do usuário (PK)
+- name : VARCHAR(100) - Nome completo do usuário
+- email : VARCHAR(100) - Email do usuário (único)
+- password : VARCHAR(255) - Senha criptografada
+### 2. Category (Categorias de Investimentos)
+- id : INT - Identificador único da categoria (PK)
+- name : VARCHAR(50) - Nome da categoria (ex: Renda Fixa, Renda Variável, Criptomoedas)
+### 3. AssetType (Tipos de Ativos)
+- id : INT - Identificador único do tipo (PK)
+- name : VARCHAR(50) - Nome do tipo (Ação, FII, Tesouro Direto, CDB, etc.)
+- decimal_places : INT - Número de casas decimais para este tipo de ativo
+### 4. Asset (Ativos)
+- id : INT - Identificador único do ativo (PK)
+- code : VARCHAR(20) - Código/ticker do ativo (ex: PETR4, BITCOIN)
+- name : VARCHAR(100) - Nome completo do ativo
+- category_id : INT - Referência à categoria (FK)
+- asset_type_id : INT - Referência ao tipo (FK)
+### 5. TransactionType (Tipos de Transações)
+- id : INT - Identificador único do tipo de transação (PK)
+- name : VARCHAR(50) - Nome do tipo (Compra, Venda, Dividendo, JCP, Rendimento, etc.)
+### 6. Platform (Plataformas)
+- id : INT - Identificador único da plataforma (PK)
+- name : VARCHAR(100) - Nome da plataforma (ex: XP Investimentos, Nubank, Binance)
+### 7. SavingsGoal (Caixinhas/Objetivos)
+- id : INT - Identificador único da caixinha (PK)
+- user_id : INT - Referência ao usuário proprietário (FK)
+- name : VARCHAR(100) - Nome da caixinha (ex: "Moto", "Viagem")
+- description : TEXT - Descrição ou objetivo da caixinha (opcional)
+- target_value : DECIMAL(15,2) - Valor alvo a ser atingido (opcional)
+- target_date : DATE - Data alvo para atingir o objetivo (opcional)
+### 8. Portfolio (Carteiras)
+- id : INT - Identificador único da carteira (PK)
+- user_id : INT - Referência ao usuário proprietário (FK)
+- asset_id : INT - Referência ao ativo (FK)
+- platform_id : INT - Referência à plataforma (FK)
+- savings_goal_id : INT - Referência à caixinha (FK, opcional)
+- current_balance : DECIMAL(18,8) - Quantidade atual do ativo nesta plataforma
+- average_price : DECIMAL(18,8) - Preço médio de aquisição nesta plataforma
+### 9. Transaction (Transações)
+- id : INT - Identificador único da transação (PK)
+- portfolio_id : INT - Referência ao portfólio (FK)
+- transaction_type_id : INT - Referência ao tipo de transação (FK)
+- quantity : DECIMAL(18,8) - Quantidade do ativo negociada
+- unit_price : DECIMAL(18,8) - Preço unitário da transação
+- total_value : DECIMAL(18,8) - Valor total da transação
+- transaction_date : DATETIME - Data e hora da transação
+- fee : DECIMAL(18,8) - Taxas pagas na transação
+- notes : TEXT - Observações adicionais sobre a transação
