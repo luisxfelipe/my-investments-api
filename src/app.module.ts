@@ -8,6 +8,7 @@ import { CategoriesModule } from './categories/categories.module';
 import { AssetTypesModule } from './asset-types/asset-types.module';
 import { PlatformsModule } from './platforms/platforms.module';
 import { AssetsModule } from './assets/assets.module';
+import { TransactionTypesModule } from './transaction-types/transaction-types.module';
 
 @Module({
   imports: [
@@ -46,6 +47,7 @@ import { AssetsModule } from './assets/assets.module';
     AssetTypesModule,
     PlatformsModule,
     AssetsModule,
+    TransactionTypesModule,
   ],
   controllers: [],
   providers: [AppService],
