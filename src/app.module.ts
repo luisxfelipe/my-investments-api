@@ -7,6 +7,7 @@ import { AuthModule } from './auth/auth.module';
 import { CategoriesModule } from './categories/categories.module';
 import { AssetTypesModule } from './asset-types/asset-types.module';
 import { PlatformsModule } from './platforms/platforms.module';
+import { AssetsModule } from './assets/assets.module';
 
 @Module({
   imports: [
@@ -44,6 +45,7 @@ import { PlatformsModule } from './platforms/platforms.module';
     CategoriesModule,
     AssetTypesModule,
     PlatformsModule,
+    AssetsModule,
   ],
   controllers: [],
   providers: [AppService],
