@@ -6,6 +6,7 @@ import { UsersModule } from './users/users.module';
 import { AuthModule } from './auth/auth.module';
 import { CategoriesModule } from './categories/categories.module';
 import { AssetTypesModule } from './asset-types/asset-types.module';
+import { PlatformsModule } from './platforms/platforms.module';
 
 @Module({
   imports: [
@@ -42,6 +43,7 @@ import { AssetTypesModule } from './asset-types/asset-types.module';
     AuthModule,
     CategoriesModule,
     AssetTypesModule,
+    PlatformsModule,
   ],
   controllers: [],
   providers: [AppService],
