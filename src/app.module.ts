@@ -10,6 +10,7 @@ import { PlatformsModule } from './platforms/platforms.module';
 import { AssetsModule } from './assets/assets.module';
 import { TransactionTypesModule } from './transaction-types/transaction-types.module';
 import { SavingsGoalsModule } from './savings-goals/savings-goals.module';
+import { PortfoliosModule } from './portfolios/portfolios.module';
 
 @Module({
   imports: [
@@ -50,6 +51,7 @@ import { SavingsGoalsModule } from './savings-goals/savings-goals.module';
     AssetsModule,
     TransactionTypesModule,
     SavingsGoalsModule,
+    PortfoliosModule,
   ],
   controllers: [],
   providers: [AppService],
