@@ -9,6 +9,7 @@ import { AssetTypesModule } from './asset-types/asset-types.module';
 import { PlatformsModule } from './platforms/platforms.module';
 import { AssetsModule } from './assets/assets.module';
 import { TransactionTypesModule } from './transaction-types/transaction-types.module';
+import { SavingsGoalsModule } from './savings-goals/savings-goals.module';
 
 @Module({
   imports: [
@@ -48,6 +49,7 @@ import { TransactionTypesModule } from './transaction-types/transaction-types.mo
     PlatformsModule,
     AssetsModule,
     TransactionTypesModule,
+    SavingsGoalsModule,
   ],
   controllers: [],
   providers: [AppService],
