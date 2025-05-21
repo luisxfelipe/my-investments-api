@@ -11,6 +11,7 @@ import { AssetsModule } from './assets/assets.module';
 import { TransactionTypesModule } from './transaction-types/transaction-types.module';
 import { SavingsGoalsModule } from './savings-goals/savings-goals.module';
 import { PortfoliosModule } from './portfolios/portfolios.module';
+import { TransactionsModule } from './transactions/transactions.module';
 
 @Module({
   imports: [
@@ -52,6 +53,7 @@ import { PortfoliosModule } from './portfolios/portfolios.module';
     TransactionTypesModule,
     SavingsGoalsModule,
     PortfoliosModule,
+    TransactionsModule,
   ],
   controllers: [],
   providers: [AppService],
