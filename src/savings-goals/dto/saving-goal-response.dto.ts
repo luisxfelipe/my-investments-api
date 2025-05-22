@@ -1,8 +1,8 @@
 import { UserResponseDto } from "src/users/dto/user-response.dto";
-import { SavingsGoal } from "../entities/savings-goal.entity";
+import { SavingGoal } from "../entities/saving-goal.entity";
 import { ApiProperty } from "@nestjs/swagger";
 
-export class SavingsGoalResponseDto {
+export class SavingGoalResponseDto {
     @ApiProperty({ description: 'Savings Goal ID' })
     id: number;
 
@@ -24,16 +24,16 @@ export class SavingsGoalResponseDto {
     @ApiProperty({ description: 'User', type: UserResponseDto })
     user?: UserResponseDto;
 
-    constructor(savingsGoal: SavingsGoal) {
-        this.id = savingsGoal.id;
-        this.userId = savingsGoal.userId;
-        this.name = savingsGoal.name;
-        this.description = savingsGoal.description;
-        this.targetValue = savingsGoal.targetValue;
-        this.targetDate = savingsGoal.targetDate;
+    constructor(savingGoal: SavingGoal) {
+        this.id = savingGoal.id;
+        this.userId = savingGoal.userId;
+        this.name = savingGoal.name;
+        this.description = savingGoal.description;
+        this.targetValue = savingGoal.targetValue;
+        this.targetDate = savingGoal.targetDate;
 
-        if (savingsGoal.user) {
-            this.user = new UserResponseDto(savingsGoal.user);
+        if (savingGoal.user) {
+            this.user = new UserResponseDto(savingGoal.user);
         }
     }
 }

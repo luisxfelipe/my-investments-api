@@ -2,8 +2,8 @@ import { ApiProperty } from "@nestjs/swagger";
 import { User } from "src/users/entities/user.entity";
 import { Column, CreateDateColumn, DeleteDateColumn, Entity, JoinColumn, ManyToOne, PrimaryGeneratedColumn, UpdateDateColumn } from "typeorm";
 
-@Entity({ name: 'savings_goal' })
-export class SavingsGoal {
+@Entity({ name: 'saving_goal' })
+export class SavingGoal {
     @ApiProperty({ description: 'Savings Goal ID' })
     @PrimaryGeneratedColumn()
     id: number;
@@ -41,7 +41,7 @@ export class SavingsGoal {
     @DeleteDateColumn({ name: 'deleted_at' })
     deletedAt: Date;
 
-    constructor(partial: Partial<SavingsGoal>) {
+    constructor(partial: Partial<SavingGoal>) {
         Object.assign(this, partial);
     }
 }

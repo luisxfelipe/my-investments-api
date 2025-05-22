@@ -1,9 +1,9 @@
 import { Controller, Get, Post, Body, Patch, Param, Delete } from '@nestjs/common';
 import { SavingsGoalsService } from './savings-goals.service';
-import { CreateSavingsGoalDto } from './dto/create-savings-goal.dto';
-import { UpdateSavingsGoalDto } from './dto/update-savings-goal.dto';
+import { CreateSavingGoalDto } from './dto/create-saving-goal.dto';
+import { UpdateSavingGoalDto } from './dto/update-saving-goal.dto';
 import { ApiOperation, ApiParam, ApiQuery, ApiResponse } from '@nestjs/swagger';
-import { SavingsGoalResponseDto } from './dto/savings-goal-response.dto';
+import { SavingGoalResponseDto } from './dto/saving-goal-response.dto';
 
 @Controller('savings-goals')
 export class SavingsGoalsController {
@@ -11,38 +11,38 @@ export class SavingsGoalsController {
 
   @Post()
   @ApiOperation({ summary: 'Create a new savings goal' })
-  @ApiResponse({ status: 201, description: 'The savings goal has been successfully created', type: SavingsGoalResponseDto })
+  @ApiResponse({ status: 201, description: 'The savings goal has been successfully created', type: SavingGoalResponseDto })
   @ApiResponse({ status: 400, description: 'Invalid data' })
   @ApiResponse({ status: 404, description: 'User not found' })
-  async create(@Body() createSavingsGoalDto: CreateSavingsGoalDto): Promise<SavingsGoalResponseDto> {
-    return new SavingsGoalResponseDto(await this.savingsGoalsService.create(createSavingsGoalDto));
+  async create(@Body() createSavingGoalDto: CreateSavingGoalDto): Promise<SavingGoalResponseDto> {
+    return new SavingGoalResponseDto(await this.savingsGoalsService.create(createSavingGoalDto));
   }
 
   @Get()
   @ApiOperation({ summary: 'Find all savings goals' })
-  @ApiResponse({ status: 200, description: 'List of all savings goals', type: [SavingsGoalResponseDto] })
-  async findAll(): Promise<SavingsGoalResponseDto[]> {
+  @ApiResponse({ status: 200, description: 'List of all savings goals', type: [SavingGoalResponseDto] })
+  async findAll(): Promise<SavingGoalResponseDto[]> {
     const savingsGoals = await this.savingsGoalsService.findAll();
-    return savingsGoals.map(savingsGoal => new SavingsGoalResponseDto(savingsGoal));
+    return savingsGoals.map(savingsGoal => new SavingGoalResponseDto(savingsGoal));
   }
 
   @Get(':id')
   @ApiOperation({ summary: 'Find one savings goal by id' })
   @ApiParam({ name: 'id', description: 'Savings Goal id' })
-  @ApiResponse({ status: 200, description: 'The found savings goal', type: SavingsGoalResponseDto })
+  @ApiResponse({ status: 200, description: 'The found savings goal', type: SavingGoalResponseDto })
   @ApiResponse({ status: 404, description: 'Savings Goal not found' })
-  async findOne(@Param('id') id: string): Promise<SavingsGoalResponseDto> {
-    return new SavingsGoalResponseDto(await this.savingsGoalsService.findOne(+id));
+  async findOne(@Param('id') id: string): Promise<SavingGoalResponseDto> {
+    return new SavingGoalResponseDto(await this.savingsGoalsService.findOne(+id));
   }
 
   @Patch(':id')
   @ApiOperation({ summary: 'Update a savings goal by id' })
   @ApiParam({ name: 'id', description: 'Savings Goal id' })
-  @ApiResponse({ status: 200, description: 'The updated savings goal', type: SavingsGoalResponseDto })
+  @ApiResponse({ status: 200, description: 'The updated savings goal', type: SavingGoalResponseDto })
   @ApiResponse({ status: 400, description: 'No data provided for update' })
   @ApiResponse({ status: 404, description: 'Savings Goal or User not found' })
-  async update(@Param('id') id: string, @Body() updateSavingsGoalDto: UpdateSavingsGoalDto): Promise<SavingsGoalResponseDto> {
-    return new SavingsGoalResponseDto(await this.savingsGoalsService.update(+id, updateSavingsGoalDto));
+  async update(@Param('id') id: string, @Body() updateSavingGoalDto: UpdateSavingGoalDto): Promise<SavingGoalResponseDto> {
+    return new SavingGoalResponseDto(await this.savingsGoalsService.update(+id, updateSavingGoalDto));
   }
 
   @Delete(':id')

@@ -1,7 +1,7 @@
 import { ApiProperty } from "@nestjs/swagger";
 import { Asset } from "src/assets/entities/asset.entity";
 import { Platform } from "src/platforms/entities/platform.entity";
-import { SavingsGoal } from "src/savings-goals/entities/savings-goal.entity";
+import { SavingGoal } from "src/savings-goals/entities/saving-goal.entity";
 import { User } from "src/users/entities/user.entity";
 import { Column, CreateDateColumn, DeleteDateColumn, Entity, JoinColumn, ManyToOne, PrimaryGeneratedColumn, UpdateDateColumn } from "typeorm";
 
@@ -47,9 +47,9 @@ export class Portfolio {
     @JoinColumn({ name: 'platform_id' })
     platform: Platform;
 
-    @ManyToOne(() => SavingsGoal, { nullable: true })
+    @ManyToOne(() => SavingGoal, { nullable: true })
     @JoinColumn({ name: 'savings_goal_id' })
-    savingsGoal: SavingsGoal;
+    savingGoal: SavingGoal;
 
     @CreateDateColumn({ name: 'created_at' })
     createdAt: Date;

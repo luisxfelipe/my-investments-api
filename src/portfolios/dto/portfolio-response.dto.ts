@@ -1,9 +1,9 @@
 import { AssetResponseDto } from "src/assets/dto/asset-response.dto";
 import { PlatformResponseDto } from "src/platforms/dto/platform-response.dto";
-import { SavingsGoalResponseDto } from "src/savings-goals/dto/savings-goal-response.dto";
 import { UserResponseDto } from "src/users/dto/user-response.dto";
 import { Portfolio } from "../entities/portfolio.entity";
 import { ApiProperty } from "@nestjs/swagger";
+import { SavingGoalResponseDto } from "src/savings-goals/dto/saving-goal-response.dto";
 
 export class PortfolioResponseDto {
     @ApiProperty({ description: 'Portfolio ID' })
@@ -36,8 +36,8 @@ export class PortfolioResponseDto {
     @ApiProperty({ description: 'Platform', type: PlatformResponseDto })
     platform?: PlatformResponseDto;
 
-    @ApiProperty({ description: 'Savings Goal', type: SavingsGoalResponseDto })
-    savingsGoal?: SavingsGoalResponseDto;
+    @ApiProperty({ description: 'Savings Goal', type: SavingGoalResponseDto })
+    savingsGoal?: SavingGoalResponseDto;
 
     constructor(portfolio: Portfolio) {
         this.id = portfolio.id;
@@ -60,8 +60,8 @@ export class PortfolioResponseDto {
             this.platform = new PlatformResponseDto(portfolio.platform);
         }
 
-        if (portfolio.savingsGoal) {
-            this.savingsGoal = new SavingsGoalResponseDto(portfolio.savingsGoal);
+        if (portfolio.savingGoal) {
+            this.savingsGoal = new SavingGoalResponseDto(portfolio.savingGoal);
         }
     }
 }

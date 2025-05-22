@@ -1,11 +1,11 @@
 import { MigrationInterface, QueryRunner, Table, TableIndex } from "typeorm";
 
-export class CreateTableCategories1747704073917 implements MigrationInterface {
+export class CreateTablePlatform1747757250904 implements MigrationInterface {
 
     public async up(queryRunner: QueryRunner): Promise<void> {
         await queryRunner.createTable(
             new Table({
-                name: "category",
+                name: "platform",
                 columns: [
                     {
                         name: "id",
@@ -43,9 +43,9 @@ export class CreateTableCategories1747704073917 implements MigrationInterface {
 
         // Criando um índice único para o campo 'name' para garantir nomes únicos
         await queryRunner.createIndex(
-            "category",
+            "platform",
             new TableIndex({
-                name: "IDX_CATEGORY_NAME",
+                name: "IDX_PLATFORM_NAME",
                 columnNames: ["name"],
                 isUnique: true,
                 where: "deleted_at IS NULL", // Garante unicidade apenas para registros não deletados
@@ -55,10 +55,10 @@ export class CreateTableCategories1747704073917 implements MigrationInterface {
 
     public async down(queryRunner: QueryRunner): Promise<void> {
         // Remover o índice primeiro
-        await queryRunner.dropIndex("category", "IDX_CATEGORY_NAME");
+        await queryRunner.dropIndex("platform", "IDX_PLATFORM_NAME");
 
         // Depois remover a tabela
-        await queryRunner.dropTable("category");
+        await queryRunner.dropTable("platform");
     }
 
 }

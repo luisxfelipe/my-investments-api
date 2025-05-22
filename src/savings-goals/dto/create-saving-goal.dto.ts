@@ -2,20 +2,20 @@ import { ApiProperty } from "@nestjs/swagger";
 import { Type } from "class-transformer";
 import { IsDate, IsDecimal, IsInt, IsNotEmpty, IsOptional, IsPositive, IsString, MaxLength } from "class-validator";
 
-export class CreateSavingsGoalDto {
+export class CreateSavingGoalDto {
     @ApiProperty({ description: 'User ID' })
     @IsNotEmpty({ message: 'User ID is required' })
     @IsInt({ message: 'User ID must be an integer' })
     @IsPositive({ message: 'User ID must be a positive number' })
     userId: number;
 
-    @ApiProperty({ description: 'Name of the savings goal' })
+    @ApiProperty({ description: 'Name of the saving goal' })
     @IsNotEmpty({ message: 'Name is required' })
     @IsString({ message: 'Name must be a string' })
     @MaxLength(100, { message: 'Name must be at most 100 characters long' })
     name: string;
 
-    @ApiProperty({ description: 'Description of the savings goal', required: false })
+    @ApiProperty({ description: 'Description of the saving goal', required: false })
     @IsOptional()
     @IsString({ message: 'Description must be a string' })
     description?: string;

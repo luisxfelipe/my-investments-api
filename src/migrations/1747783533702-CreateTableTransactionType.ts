@@ -1,11 +1,11 @@
 import { MigrationInterface, QueryRunner, Table, TableIndex } from "typeorm";
 
-export class CreateTableAssetTypes1747756263163 implements MigrationInterface {
+export class CreateTableTransactionType1747783533702 implements MigrationInterface {
 
     public async up(queryRunner: QueryRunner): Promise<void> {
         await queryRunner.createTable(
             new Table({
-                name: "asset_type",
+                name: "transaction_type",
                 columns: [
                     {
                         name: "id",
@@ -43,9 +43,9 @@ export class CreateTableAssetTypes1747756263163 implements MigrationInterface {
 
         // Criando um índice único para o campo 'name' para garantir nomes únicos
         await queryRunner.createIndex(
-            "asset_type",
+            "transaction_type",
             new TableIndex({
-                name: "IDX_ASSET_TYPE_NAME",
+                name: "IDX_TRANSACTION_TYPE_NAME",
                 columnNames: ["name"],
                 isUnique: true,
                 where: "deleted_at IS NULL", // Garante unicidade apenas para registros não deletados
@@ -55,10 +55,10 @@ export class CreateTableAssetTypes1747756263163 implements MigrationInterface {
 
     public async down(queryRunner: QueryRunner): Promise<void> {
         // Remover o índice primeiro
-        await queryRunner.dropIndex("asset_type", "IDX_ASSET_TYPE_NAME");
+        await queryRunner.dropIndex("transaction_type", "IDX_TRANSACTION_TYPE_NAME");
 
         // Depois remover a tabela
-        await queryRunner.dropTable("asset_type");
+        await queryRunner.dropTable("transaction_type");
     }
 
 }

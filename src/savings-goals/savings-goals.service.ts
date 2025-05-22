@@ -1,34 +1,34 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
-import { CreateSavingsGoalDto } from './dto/create-savings-goal.dto';
-import { UpdateSavingsGoalDto } from './dto/update-savings-goal.dto';
-import { SavingsGoal } from './entities/savings-goal.entity';
+import { SavingGoal } from './entities/saving-goal.entity';
 import { UsersService } from 'src/users/users.service';
 import { Repository } from 'typeorm';
 import { InjectRepository } from '@nestjs/typeorm';
+import { CreateSavingGoalDto } from './dto/create-saving-goal.dto';
+import { UpdateSavingGoalDto } from './dto/update-saving-goal.dto';
 
 @Injectable()
 export class SavingsGoalsService {
   constructor(
-    @InjectRepository(SavingsGoal)
-    private readonly repository: Repository<SavingsGoal>,
+    @InjectRepository(SavingGoal)
+    private readonly repository: Repository<SavingGoal>,
     private readonly usersService: UsersService,
   ) { }
 
-  async create(createSavingsGoalDto: CreateSavingsGoalDto): Promise<SavingsGoal> {
+  async create(createSavingGoalDto: CreateSavingGoalDto): Promise<SavingGoal> {
     // Verifica se o usuário existe
-    await this.usersService.findOne(createSavingsGoalDto.userId);
+    await this.usersService.findOne(createSavingGoalDto.userId);
 
-    const savingsGoal = this.repository.create(createSavingsGoalDto);
-    return this.repository.save(savingsGoal);
+    const savingGoal = this.repository.create(createSavingGoalDto);
+    return this.repository.save(savingGoal);
   }
 
-  async findAll(): Promise<SavingsGoal[]> {
+  async findAll(): Promise<SavingGoal[]> {
     return this.repository.find({
       relations: ['user'],
     });
   }
 
-  async findOne(id: number): Promise<SavingsGoal> {
+  async findOne(id: number): Promise<SavingGoal> {
     const savingsGoal = await this.repository.findOne({
       where: { id },
       relations: ['user'],
@@ -41,8 +41,8 @@ export class SavingsGoalsService {
     return savingsGoal;
   }
 
-  async update(id: number, updateSavingsGoalDto: UpdateSavingsGoalDto): Promise<SavingsGoal> {
-    if (!updateSavingsGoalDto || Object.keys(updateSavingsGoalDto).length === 0) {
+  async update(id: number, updateSavingGoalDto: UpdateSavingGoalDto): Promise<SavingGoal> {
+    if (!updateSavingGoalDto || Object.keys(updateSavingGoalDto).length === 0) {
       throw new BadRequestException(`No properties provided for update`);
     }
 
@@ -50,11 +50,11 @@ export class SavingsGoalsService {
     const savingsGoal = await this.findOne(id);
 
     // Verifica se o usuário existe, se foi fornecido
-    if (updateSavingsGoalDto.userId) {
-      await this.usersService.findOne(updateSavingsGoalDto.userId);
+    if (updateSavingGoalDto.userId) {
+      await this.usersService.findOne(updateSavingGoalDto.userId);
     }
 
-    this.repository.merge(savingsGoal, updateSavingsGoalDto);
+    this.repository.merge(savingsGoal, updateSavingGoalDto);
     return this.repository.save(savingsGoal);
   }
 

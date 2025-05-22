@@ -1,11 +1,11 @@
 import { MigrationInterface, QueryRunner, Table, TableForeignKey } from "typeorm";
 
-export class CreateTableSavingsGoals1747784366452 implements MigrationInterface {
+export class CreateTableSavingGoal1747784366452 implements MigrationInterface {
 
     public async up(queryRunner: QueryRunner): Promise<void> {
         await queryRunner.createTable(
             new Table({
-                name: "savings_goal",
+                name: "saving_goal",
                 columns: [
                     {
                         name: "id",
@@ -65,9 +65,9 @@ export class CreateTableSavingsGoals1747784366452 implements MigrationInterface 
 
         // Criando chave estrangeira para usuário
         await queryRunner.createForeignKey(
-            "savings_goal",
+            "saving_goal",
             new TableForeignKey({
-                name: "FK_SAVINGS_GOAL_USER",
+                name: "FK_SAVING_GOAL_USER",
                 columnNames: ["user_id"],
                 referencedTableName: "user",
                 referencedColumnNames: ["id"],
@@ -79,10 +79,10 @@ export class CreateTableSavingsGoals1747784366452 implements MigrationInterface 
 
     public async down(queryRunner: QueryRunner): Promise<void> {
         // Remover a chave estrangeira primeiro
-        await queryRunner.dropForeignKey("savings_goal", "FK_SAVINGS_GOAL_USER");
+        await queryRunner.dropForeignKey("saving_goal", "FK_SAVING_GOAL_USER");
 
         // Depois remover a tabela
-        await queryRunner.dropTable("savings_goal");
+        await queryRunner.dropTable("saving_goal");
     }
 
 }

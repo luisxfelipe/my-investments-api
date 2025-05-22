@@ -1,11 +1,11 @@
 import { MigrationInterface, QueryRunner, Table, TableForeignKey } from "typeorm";
 
-export class CreateTableTransactions1747794194905 implements MigrationInterface {
+export class CreateTablePortfolio1747792752543 implements MigrationInterface {
 
     public async up(queryRunner: QueryRunner): Promise<void> {
         await queryRunner.createTable(
             new Table({
-                name: "transaction",
+                name: "portfolio",
                 columns: [
                     {
                         name: "id",
@@ -15,52 +15,40 @@ export class CreateTableTransactions1747794194905 implements MigrationInterface 
                         generationStrategy: "increment",
                     },
                     {
-                        name: "portfolio_id",
+                        name: "user_id",
                         type: "int",
                         isNullable: false,
                     },
                     {
-                        name: "transaction_type_id",
+                        name: "asset_id",
                         type: "int",
                         isNullable: false,
                     },
                     {
-                        name: "quantity",
-                        type: "decimal",
-                        precision: 18,
-                        scale: 8,
+                        name: "platform_id",
+                        type: "int",
                         isNullable: false,
                     },
                     {
-                        name: "unit_price",
-                        type: "decimal",
-                        precision: 18,
-                        scale: 8,
-                        isNullable: false,
-                    },
-                    {
-                        name: "total_value",
-                        type: "decimal",
-                        precision: 18,
-                        scale: 8,
-                        isNullable: false,
-                    },
-                    {
-                        name: "transaction_date",
-                        type: "datetime",
-                        isNullable: false,
-                    },
-                    {
-                        name: "fee",
-                        type: "decimal",
-                        precision: 18,
-                        scale: 8,
+                        name: "saving_goal_id",
+                        type: "int",
                         isNullable: true,
                     },
                     {
-                        name: "notes",
-                        type: "text",
-                        isNullable: true,
+                        name: "current_balance",
+                        type: "decimal",
+                        precision: 18,
+                        scale: 8,
+                        isNullable: false,
+                        default: 0,
+                    },
+                    {
+                        name: "average_price",
+                        type: "decimal",
+                        precision: 18,
+                        scale: 8,
+                        isNullable: false,
+                        default: 0,
                     },
                     {
                         name: "created_at",
@@ -83,28 +71,54 @@ export class CreateTableTransactions1747794194905 implements MigrationInterface 
             true
         );
 
-        // Criando chave estrangeira para portfolio
+        // Criando chave estrangeira para usuário
         await queryRunner.createForeignKey(
-            "transaction",
+            "portfolio",
             new TableForeignKey({
-                name: "FK_TRANSACTION_PORTFOLIO",
-                columnNames: ["portfolio_id"],
-                referencedTableName: "portfolio",
+                name: "FK_PORTFOLIO_USER",
+                columnNames: ["user_id"],
+                referencedTableName: "user",
                 referencedColumnNames: ["id"],
                 onDelete: "RESTRICT",
                 onUpdate: "CASCADE",
             })
         );
 
-        // Criando chave estrangeira para tipo de transação
+        // Criando chave estrangeira para ativo
         await queryRunner.createForeignKey(
-            "transaction",
+            "portfolio",
             new TableForeignKey({
-                name: "FK_TRANSACTION_TRANSACTION_TYPE",
-                columnNames: ["transaction_type_id"],
-                referencedTableName: "transaction_type",
+                name: "FK_PORTFOLIO_ASSET",
+                columnNames: ["asset_id"],
+                referencedTableName: "asset",
                 referencedColumnNames: ["id"],
                 onDelete: "RESTRICT",
+                onUpdate: "CASCADE",
+            })
+        );
+
+        // Criando chave estrangeira para plataforma
+        await queryRunner.createForeignKey(
+            "portfolio",
+            new TableForeignKey({
+                name: "FK_PORTFOLIO_PLATFORM",
+                columnNames: ["platform_id"],
+                referencedTableName: "platform",
+                referencedColumnNames: ["id"],
+                onDelete: "RESTRICT",
+                onUpdate: "CASCADE",
+            })
+        );
+
+        // Criando chave estrangeira para caixinha/objetivo
+        await queryRunner.createForeignKey(
+            "portfolio",
+            new TableForeignKey({
+                name: "FK_PORTFOLIO_SAVINGS_GOAL",
+                columnNames: ["saving_goal_id"],
+                referencedTableName: "saving_goal",
+                referencedColumnNames: ["id"],
+                onDelete: "SET NULL",
                 onUpdate: "CASCADE",
             })
         );
@@ -112,11 +126,13 @@ export class CreateTableTransactions1747794194905 implements MigrationInterface 
 
     public async down(queryRunner: QueryRunner): Promise<void> {
         // Remover as chaves estrangeiras primeiro
-        await queryRunner.dropForeignKey("transaction", "FK_TRANSACTION_TRANSACTION_TYPE");
-        await queryRunner.dropForeignKey("transaction", "FK_TRANSACTION_PORTFOLIO");
+        await queryRunner.dropForeignKey("portfolio", "FK_PORTFOLIO_SAVINGS_GOAL");
+        await queryRunner.dropForeignKey("portfolio", "FK_PORTFOLIO_PLATFORM");
+        await queryRunner.dropForeignKey("portfolio", "FK_PORTFOLIO_ASSET");
+        await queryRunner.dropForeignKey("portfolio", "FK_PORTFOLIO_USER");
 
         // Depois remover a tabela
-        await queryRunner.dropTable("transaction");
+        await queryRunner.dropTable("portfolio");
     }
 
 }
