@@ -6,6 +6,7 @@ import { TransactionTypesService } from 'src/transaction-types/transaction-types
 import { PortfoliosService } from 'src/portfolios/portfolios.service';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Transaction } from './entities/transaction.entity';
+import { PaginatedResponseDto } from 'src/dtos/paginated-response.dto';
 
 @Injectable()
 export class TransactionsService {
@@ -31,6 +32,21 @@ export class TransactionsService {
     return this.repository.find({
       relations: ['portfolio', 'transactionType'],
     });
+  }
+
+  async findAllWithPagination(
+    take = 10,
+    page = 1,
+  ): Promise<PaginatedResponseDto<Transaction>> {
+    const skip = (page - 1) * take;
+
+    const [transactions, total] = await this.repository.findAndCount({
+      relations: ['portfolio', 'transactionType'],
+      take,
+      skip,
+    });
+
+    return new PaginatedResponseDto(transactions, total);
   }
 
   async findOne(id: number): Promise<Transaction> {

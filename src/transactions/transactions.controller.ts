@@ -1,9 +1,10 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete } from '@nestjs/common';
+import { Controller, Get, Post, Body, Patch, Param, Delete, Query } from '@nestjs/common';
 import { TransactionsService } from './transactions.service';
 import { CreateTransactionDto } from './dto/create-transaction.dto';
 import { UpdateTransactionDto } from './dto/update-transaction.dto';
-import { ApiOperation, ApiParam, ApiResponse } from '@nestjs/swagger';
+import { ApiOperation, ApiParam, ApiQuery, ApiResponse, getSchemaPath } from '@nestjs/swagger';
 import { TransactionResponseDto } from './dto/transaction-response.dto';
+import { PaginatedResponseDto } from 'src/dtos/paginated-response.dto';
 
 @Controller('transactions')
 export class TransactionsController {
@@ -24,6 +25,47 @@ export class TransactionsController {
   async findAll(): Promise<TransactionResponseDto[]> {
     const transactions = await this.transactionsService.findAll();
     return transactions.map(transaction => new TransactionResponseDto(transaction));
+  }
+
+  @Get('pages')
+  @ApiOperation({ summary: 'Find all transactions with pagination' })
+  @ApiQuery({ name: 'page', required: false, description: 'Page number', type: Number })
+  @ApiQuery({ name: 'take', required: false, description: 'Items per page', type: Number })
+  @ApiResponse({
+    status: 200,
+    description: 'Paginated list of transactions',
+    schema: {
+      properties: {
+        data: {
+          type: 'array',
+          items: { $ref: getSchemaPath(TransactionResponseDto) }
+        },
+        total: { type: 'number', example: 100 },
+      }
+    }
+  })
+  async findAllWithPagination(
+    @Query('take') take?: string,
+    @Query('page') page?: string,
+  ): Promise<PaginatedResponseDto<TransactionResponseDto>> {
+    const takeNumber = take ? parseInt(take) : 10;
+    const pageNumber = page ? parseInt(page) : 1;
+
+    const transactions = await this.transactionsService.findAllWithPagination(
+      takeNumber,
+      pageNumber,
+    );
+
+    // Transformar as transações em DTOs de resposta
+    const transactionDtos = transactions.data.map(
+      transaction => new TransactionResponseDto(transaction)
+    );
+
+    // Retornar o objeto PaginatedResponseDto com os dados transformados
+    return new PaginatedResponseDto<TransactionResponseDto>(
+      transactionDtos,
+      transactions.total
+    );
   }
 
   @Get(':id')
