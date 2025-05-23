@@ -10,6 +10,21 @@ async function bootstrap() {
   const configService = app.get(ConfigService);
 
   const port = configService.get<number>('PORT') || 3000;
+
+  const cors = {
+    origin: [
+      'http://localhost:3000',
+      'http://localhost:3001',
+    ],
+    methods: 'GET, HEAD, PUT, PATCH, POST, DELETE, OPTIONS',
+    preflightContinue: false,
+    optionsSuccessStatus: 204,
+    credentials: true,
+    allowedHeaders: ['Accept', 'Content-Type', 'Authorization'],
+  };
+
+  app.enableCors(cors);
+
   app.use(helmet());
 
   const config = new DocumentBuilder()
