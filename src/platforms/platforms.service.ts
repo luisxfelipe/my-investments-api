@@ -4,6 +4,7 @@ import { UpdatePlatformDto } from './dto/update-platform.dto';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Platform } from './entities/platform.entity';
 import { Repository } from 'typeorm';
+import { PaginatedResponseDto } from 'src/dtos/paginated-response.dto';
 
 @Injectable()
 export class PlatformsService {
@@ -26,6 +27,20 @@ export class PlatformsService {
 
   async findAll(): Promise<Platform[]> {
     return this.repository.find();
+  }
+
+  async findAllWithPagination(
+    take = 10,
+    page = 1,
+  ): Promise<PaginatedResponseDto<Platform>> {
+    const skip = (page - 1) * take;
+
+    const [platforms, total] = await this.repository.findAndCount({
+      take,
+      skip,
+    });
+
+    return new PaginatedResponseDto(platforms, total);
   }
 
   async findOne(id: number): Promise<Platform> {
