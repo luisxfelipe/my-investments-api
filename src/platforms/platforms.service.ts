@@ -40,7 +40,7 @@ export class PlatformsService {
       skip,
     });
 
-    return new PaginatedResponseDto(platforms, total);
+    return new PaginatedResponseDto(platforms, total, take, page);
   }
 
   async findOne(id: number): Promise<Platform> {

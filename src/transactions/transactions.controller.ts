@@ -2,10 +2,12 @@ import { Controller, Get, Post, Body, Patch, Param, Delete, Query } from '@nestj
 import { TransactionsService } from './transactions.service';
 import { CreateTransactionDto } from './dto/create-transaction.dto';
 import { UpdateTransactionDto } from './dto/update-transaction.dto';
-import { ApiOperation, ApiParam, ApiQuery, ApiResponse, getSchemaPath } from '@nestjs/swagger';
+import { ApiOperation, ApiParam, ApiQuery, ApiResponse, ApiTags, getSchemaPath } from '@nestjs/swagger';
 import { TransactionResponseDto } from './dto/transaction-response.dto';
 import { PaginatedResponseDto } from 'src/dtos/paginated-response.dto';
+import { PaginatedTransactionResponseDto } from './dto/paginated-transaction-response.dto';
 
+@ApiTags('transactions')
 @Controller('transactions')
 export class TransactionsController {
   constructor(private readonly transactionsService: TransactionsService) { }
@@ -34,15 +36,7 @@ export class TransactionsController {
   @ApiResponse({
     status: 200,
     description: 'Paginated list of transactions',
-    schema: {
-      properties: {
-        data: {
-          type: 'array',
-          items: { $ref: getSchemaPath(TransactionResponseDto) }
-        },
-        total: { type: 'number', example: 100 },
-      }
-    }
+    type: PaginatedTransactionResponseDto
   })
   async findAllWithPagination(
     @Query('take') take?: string,
@@ -50,7 +44,7 @@ export class TransactionsController {
   ): Promise<PaginatedResponseDto<TransactionResponseDto>> {
     const takeNumber = take ? parseInt(take) : 10;
     const pageNumber = page ? parseInt(page) : 1;
-
+    
     const transactions = await this.transactionsService.findAllWithPagination(
       takeNumber,
       pageNumber,
@@ -64,7 +58,9 @@ export class TransactionsController {
     // Retornar o objeto PaginatedResponseDto com os dados transformados
     return new PaginatedResponseDto<TransactionResponseDto>(
       transactionDtos,
-      transactions.total
+      transactions.meta.totalItems,
+      transactions.meta.itemsPerPage,
+      transactions.meta.currentPage
     );
   }
 

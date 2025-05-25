@@ -46,7 +46,7 @@ export class TransactionsService {
       skip,
     });
 
-    return new PaginatedResponseDto(transactions, total);
+    return new PaginatedResponseDto(transactions, total, take, page);
   }
 
   async findOne(id: number): Promise<Transaction> {

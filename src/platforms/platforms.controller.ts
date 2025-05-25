@@ -5,6 +5,7 @@ import { UpdatePlatformDto } from './dto/update-platform.dto';
 import { ApiOperation, ApiParam, ApiQuery, ApiResponse, ApiTags, getSchemaPath } from '@nestjs/swagger';
 import { PlatformResponseDto } from './dto/platform-response.dto';
 import { PaginatedResponseDto } from 'src/dtos/paginated-response.dto';
+import { PaginatedPlatformResponseDto } from './dto/paginated-platform-response.dto';
 
 @ApiTags('platforms')
 @Controller('platforms')
@@ -34,15 +35,7 @@ export class PlatformsController {
   @ApiResponse({
     status: 200,
     description: 'Paginated list of platforms',
-    schema: {
-      properties: {
-        data: {
-          type: 'array',
-          items: { $ref: getSchemaPath(PlatformResponseDto) }
-        },
-        total: { type: 'number', example: 100 },
-      }
-    }
+    type: PaginatedPlatformResponseDto
   })
   async findAllWithPagination(
     @Query('take') take?: string,
@@ -64,7 +57,9 @@ export class PlatformsController {
     // Retornar o objeto PaginatedResponseDto com os dados transformados
     return new PaginatedResponseDto<PlatformResponseDto>(
       platformDtos,
-      platforms.total
+      platforms.meta.totalItems,
+      platforms.meta.itemsPerPage,
+      platforms.meta.currentPage
     );
   }
 

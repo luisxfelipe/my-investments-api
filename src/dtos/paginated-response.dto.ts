@@ -1,14 +1,30 @@
 import { ApiProperty } from "@nestjs/swagger";
+import { PaginationMetaDto } from "./pagination.dto";
 
 export class PaginatedResponseDto<T> {
-    @ApiProperty({ description: 'Paged data', type: 'array', isArray: true })
+    @ApiProperty({ 
+        description: 'Metadata da paginação',
+        type: PaginationMetaDto
+    })
+    meta: PaginationMetaDto;
+
+    @ApiProperty({ 
+        description: 'Dados paginados', 
+        type: 'array', 
+        isArray: true 
+    })
     data: T[];
 
-    @ApiProperty({ description: 'Total items found', type: Number })
-    total: number;
-
-    constructor(data: T[], total: number) {
+    constructor(data: T[], total: number, itemsPerPage: number, currentPage: number) {
+        const totalPages = Math.ceil(total / itemsPerPage);
+        
+        this.meta = new PaginationMetaDto(
+            itemsPerPage,
+            total,
+            currentPage,
+            totalPages
+        );
+        
         this.data = data;
-        this.total = total;
     }
 }
