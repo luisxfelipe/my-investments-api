@@ -20,9 +20,6 @@ export class AssetResponseDto {
     @ApiProperty({ description: 'Asset Type ID' })
     assetTypeId: number;
 
-    @ApiProperty({ description: 'Platform ID' })
-    platformId: number;
-
     @ApiProperty({ description: 'Category', type: CategoryResponseDto })
     category?: CategoryResponseDto;
 
@@ -38,7 +35,6 @@ export class AssetResponseDto {
         this.code = asset.code;
         this.categoryId = asset.categoryId;
         this.assetTypeId = asset.assetTypeId;
-        this.platformId = asset.platformId;
 
         if (asset.category) {
             this.category = new CategoryResponseDto(asset.category);
@@ -46,10 +42,6 @@ export class AssetResponseDto {
 
         if (asset.assetType) {
             this.assetType = new AssetTypeResponseDto(asset.assetType);
-        }
-
-        if (asset.platform) {
-            this.platform = new PlatformResponseDto(asset.platform);
         }
     }
 }

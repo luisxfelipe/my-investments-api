@@ -25,23 +25,20 @@ export class AssetsService {
     // Verifica se o tipo de ativo existe
     await this.assetTypesService.findOne(createAssetDto.assetTypeId);
 
-    // Verifica se a plataforma existe
-    await this.platformsService.findOne(createAssetDto.platformId);
-
     const asset = this.repository.create(createAssetDto);
     return this.repository.save(asset);
   }
 
   async findAll(): Promise<Asset[]> {
     return this.repository.find({
-      relations: ['category', 'assetType', 'platform'],
+      relations: ['category', 'assetType'],
     });
   }
 
   async findOne(id: number): Promise<Asset> {
     const asset = await this.repository.findOne({
       where: { id },
-      relations: ['category', 'assetType', 'platform'],
+      relations: ['category', 'assetType'],
     });
 
     if (!asset) {
@@ -67,11 +64,6 @@ export class AssetsService {
     // Verifica se o tipo de ativo existe, se foi fornecido
     if (updateAssetDto.assetTypeId) {
       await this.assetTypesService.findOne(updateAssetDto.assetTypeId);
-    }
-
-    // Verifica se a plataforma existe, se foi fornecida
-    if (updateAssetDto.platformId) {
-      await this.platformsService.findOne(updateAssetDto.platformId);
     }
 
     this.repository.merge(asset, updateAssetDto);

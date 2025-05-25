@@ -26,10 +26,6 @@ export class Asset {
     @Column({ name: 'asset_type_id' })
     assetTypeId: number;
 
-    @ApiProperty({ description: 'Platform ID' })
-    @Column({ name: 'platform_id' })
-    platformId: number;
-
     @ManyToOne(() => Category)
     @JoinColumn({ name: 'category_id' })
     category: Category;
@@ -37,10 +33,6 @@ export class Asset {
     @ManyToOne(() => AssetType)
     @JoinColumn({ name: 'asset_type_id' })
     assetType: AssetType;
-
-    @ManyToOne(() => Platform)
-    @JoinColumn({ name: 'platform_id' })
-    platform: Platform;
 
     @CreateDateColumn({ name: 'created_at' })
     createdAt: Date;

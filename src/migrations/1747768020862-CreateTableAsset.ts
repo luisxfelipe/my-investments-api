@@ -37,11 +37,6 @@ export class CreateTableAsset1747768020862 implements MigrationInterface {
                         isNullable: false,
                     },
                     {
-                        name: "platform_id",
-                        type: "int",
-                        isNullable: false,
-                    },
-                    {
                         name: "created_at",
                         type: "timestamp",
                         default: "CURRENT_TIMESTAMP",
@@ -88,23 +83,10 @@ export class CreateTableAsset1747768020862 implements MigrationInterface {
             })
         );
 
-        // Criando chave estrangeira para plataforma
-        await queryRunner.createForeignKey(
-            "asset",
-            new TableForeignKey({
-                name: "FK_ASSET_PLATFORM",
-                columnNames: ["platform_id"],
-                referencedTableName: "platform",
-                referencedColumnNames: ["id"],
-                onDelete: "RESTRICT",
-                onUpdate: "CASCADE",
-            })
-        );
     }
 
     public async down(queryRunner: QueryRunner): Promise<void> {
         // Remover as chaves estrangeiras primeiro
-        await queryRunner.dropForeignKey("asset", "FK_ASSET_PLATFORM");
         await queryRunner.dropForeignKey("asset", "FK_ASSET_ASSET_TYPE");
         await queryRunner.dropForeignKey("asset", "FK_ASSET_CATEGORY");
 

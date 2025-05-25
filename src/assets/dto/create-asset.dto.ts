@@ -25,10 +25,4 @@ export class CreateAssetDto {
     @IsInt({ message: 'Asset Type ID must be an integer' })
     @IsPositive({ message: 'Asset Type ID must be a positive number' })
     assetTypeId: number;
-
-    @ApiProperty({ description: 'Platform ID' })
-    @IsNotEmpty({ message: 'Platform ID is required' })
-    @IsInt({ message: 'Platform ID must be an integer' })
-    @IsPositive({ message: 'Platform ID must be a positive number' })
-    platformId: number;
 }
