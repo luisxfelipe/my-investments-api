@@ -102,6 +102,32 @@ export class AssetQuotesService {
         });
     }
 
+    async findLatestForAssetIds(assetIds: number[]): Promise<AssetQuote[]> {
+        if (!assetIds || assetIds.length === 0) {
+            return [];
+        }
+        // Subquery para pegar a última cotação (maior timestamp) de cada assetId informado
+        const subQuery = this.repository
+            .createQueryBuilder('sub')
+            .select('MAX(sub.timestamp)', 'maxTimestamp')
+            .addSelect('sub.assetId', 'assetId')
+            .where('sub.assetId IN (:...assetIds)', { assetIds })
+            .groupBy('sub.assetId');
+
+        // Junta com a tabela principal para pegar os registros completos
+        const latestQuotes = await this.repository
+            .createQueryBuilder('quote')
+            .innerJoin(
+                '(' + subQuery.getQuery() + ')',
+                'sq',
+                'quote.assetId = sq.assetId AND quote.timestamp = sq.maxTimestamp'
+            )
+            .setParameters(subQuery.getParameters())
+            .getMany();
+
+        return latestQuotes;
+    }
+
     async update(id: number, updateData: UpdateAssetQuoteDto): Promise<AssetQuote> {
         if (!updateData || Object.keys(updateData).length === 0) {
             throw new BadRequestException('No properties provided for update');

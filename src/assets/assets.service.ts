@@ -7,6 +7,7 @@ import { AssetTypesService } from 'src/asset-types/asset-types.service';
 import { PlatformsService } from 'src/platforms/platforms.service';
 import { Repository } from 'typeorm';
 import { InjectRepository } from '@nestjs/typeorm';
+import { In } from 'typeorm';
 
 @Injectable()
 export class AssetsService {
@@ -46,6 +47,16 @@ export class AssetsService {
     }
 
     return asset;
+  }
+
+  async findByIds(ids: number[]): Promise<Asset[]> {
+    if (!ids || ids.length === 0) {
+      return [];
+    }
+    return this.repository.find({
+      where: { id: In(ids) },
+      relations: ['category', 'assetType'],
+    });
   }
 
   async update(id: number, updateAssetDto: UpdateAssetDto): Promise<Asset> {

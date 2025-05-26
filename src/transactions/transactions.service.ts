@@ -34,6 +34,30 @@ export class TransactionsService {
     });
   }
 
+  async findAllByPlatformId(platformId: number, userId: number): Promise<Transaction[]> {
+    return this.repository.createQueryBuilder('transaction')
+      .leftJoinAndSelect('transaction.portfolio', 'portfolio')
+      .leftJoinAndSelect('transaction.transactionType', 'transactionType')
+      .leftJoinAndSelect('transaction.asset', 'asset')
+      .where('asset.platformId = :platformId', { platformId })
+      .andWhere('portfolio.userId = :userId', { userId })
+      .getMany();
+  }
+
+  async findAllByPlatformIdWithPagination(platformId: number, userId: number, take = 10, page = 1): Promise<PaginatedResponseDto<Transaction>> {
+    const skip = (page - 1) * take;
+    const [transactions, total] = await this.repository.createQueryBuilder('transaction')
+      .leftJoinAndSelect('transaction.portfolio', 'portfolio')
+      .leftJoinAndSelect('transaction.transactionType', 'transactionType')
+      .leftJoinAndSelect('transaction.asset', 'asset')
+      .where('asset.platformId = :platformId', { platformId })
+      .andWhere('portfolio.userId = :userId', { userId })
+      .take(take)
+      .skip(skip)
+      .getManyAndCount();
+    return new PaginatedResponseDto(transactions, total, take, page);
+  }
+
   async findAllWithPagination(
     take = 10,
     page = 1,
