@@ -12,6 +12,7 @@ import { TransactionTypesModule } from './transaction-types/transaction-types.mo
 import { SavingsGoalsModule } from './savings-goals/savings-goals.module';
 import { PortfoliosModule } from './portfolios/portfolios.module';
 import { TransactionsModule } from './transactions/transactions.module';
+import { AssetQuotesModule } from './asset-quotes/asset-quotes.module';
 
 @Module({
   imports: [
@@ -54,8 +55,9 @@ import { TransactionsModule } from './transactions/transactions.module';
     SavingsGoalsModule,
     PortfoliosModule,
     TransactionsModule,
+    AssetQuotesModule,
   ],
   controllers: [],
   providers: [AppService],
 })
-export class AppModule {}
+export class AppModule { }
