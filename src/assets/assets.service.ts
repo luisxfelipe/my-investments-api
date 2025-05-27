@@ -1,10 +1,13 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { CreateAssetDto } from './dto/create-asset.dto';
 import { UpdateAssetDto } from './dto/update-asset.dto';
 import { Asset } from './entities/asset.entity';
 import { CategoriesService } from 'src/categories/categories.service';
 import { AssetTypesService } from 'src/asset-types/asset-types.service';
-import { PlatformsService } from 'src/platforms/platforms.service';
 import { Repository } from 'typeorm';
 import { InjectRepository } from '@nestjs/typeorm';
 import { In } from 'typeorm';
@@ -16,8 +19,7 @@ export class AssetsService {
     private readonly repository: Repository<Asset>,
     private readonly categoriesService: CategoriesService,
     private readonly assetTypesService: AssetTypesService,
-    private readonly platformsService: PlatformsService,
-  ) { }
+  ) {}
 
   async create(createAssetDto: CreateAssetDto): Promise<Asset> {
     // Verifica se a categoria existe

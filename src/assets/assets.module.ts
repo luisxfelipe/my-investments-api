@@ -5,17 +5,15 @@ import { Asset } from './entities/asset.entity';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { CategoriesModule } from 'src/categories/categories.module';
 import { AssetTypesModule } from 'src/asset-types/asset-types.module';
-import { PlatformsModule } from 'src/platforms/platforms.module';
 
 @Module({
   imports: [
     TypeOrmModule.forFeature([Asset]),
     CategoriesModule,
     AssetTypesModule,
-    PlatformsModule,
   ],
   controllers: [AssetsController],
   providers: [AssetsService],
   exports: [AssetsService],
 })
-export class AssetsModule { }
+export class AssetsModule {}
