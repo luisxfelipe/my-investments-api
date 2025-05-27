@@ -1,0 +1,6 @@
+{
+  "version": "0.2",
+  "language": "en",
+  "words": ["dtos", "dto", "nestjs", "typeorm", "postgres", "jwt", "uuid"],
+  "ignorePaths": ["node_modules/**", "dist/**", "*.log"]
+}
