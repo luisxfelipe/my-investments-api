@@ -2,6 +2,8 @@ import {
   BadRequestException,
   Injectable,
   NotFoundException,
+  Inject,
+  forwardRef,
 } from '@nestjs/common';
 import { CreateTransactionDto } from './dto/create-transaction.dto';
 import { UpdateTransactionDto } from './dto/update-transaction.dto';
@@ -17,6 +19,7 @@ export class TransactionsService {
   constructor(
     @InjectRepository(Transaction)
     private readonly repository: Repository<Transaction>,
+    @Inject(forwardRef(() => PortfoliosService))
     private readonly portfoliosService: PortfoliosService,
     private readonly transactionTypesService: TransactionTypesService,
   ) {}

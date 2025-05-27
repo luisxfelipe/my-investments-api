@@ -28,8 +28,11 @@ export class PlatformsService {
   constructor(
     @InjectRepository(Platform)
     private readonly repository: Repository<Platform>,
+    @Inject(forwardRef(() => TransactionsService))
     private readonly transactionsService: TransactionsService,
+    @Inject(forwardRef(() => AssetsService))
     private readonly assetsService: AssetsService,
+    @Inject(forwardRef(() => AssetQuotesService))
     private readonly assetQuotesService: AssetQuotesService,
     @Inject(forwardRef(() => PortfoliosService))
     private readonly portfoliosService: PortfoliosService,

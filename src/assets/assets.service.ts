@@ -22,6 +22,7 @@ export class AssetsService {
     @InjectRepository(Asset)
     private readonly repository: Repository<Asset>,
     private readonly categoriesService: CategoriesService,
+    @Inject(forwardRef(() => AssetTypesService))
     private readonly assetTypesService: AssetTypesService,
     @Inject(forwardRef(() => PortfoliosService))
     private readonly portfoliosService: PortfoliosService,
@@ -164,5 +165,14 @@ export class AssetsService {
 
     // Usa softDelete em vez de remove para fazer soft delete
     await this.repository.softDelete(id);
+  }
+
+  /**
+   * Conta quantos ativos estão usando um tipo de ativo específico
+   */
+  async countByAssetTypeId(assetTypeId: number): Promise<number> {
+    return this.repository.count({
+      where: { assetTypeId },
+    });
   }
 }

@@ -11,8 +11,8 @@ import { PortfoliosModule } from 'src/portfolios/portfolios.module';
 @Module({
   imports: [
     TypeOrmModule.forFeature([Platform]),
-    TransactionsModule,
-    AssetsModule,
+    forwardRef(() => TransactionsModule),
+    forwardRef(() => AssetsModule),
     AssetQuotesModule,
     forwardRef(() => PortfoliosModule),
   ],

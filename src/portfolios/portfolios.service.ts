@@ -23,6 +23,7 @@ export class PortfoliosService {
     @InjectRepository(Portfolio)
     private readonly repository: Repository<Portfolio>,
     private readonly usersService: UsersService,
+    @Inject(forwardRef(() => AssetsService))
     private readonly assetsService: AssetsService,
     @Inject(forwardRef(() => PlatformsService))
     private readonly platformsService: PlatformsService,

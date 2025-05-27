@@ -12,7 +12,7 @@ import { AssetQuotesModule } from 'src/asset-quotes/asset-quotes.module';
   imports: [
     TypeOrmModule.forFeature([Asset]),
     CategoriesModule,
-    AssetTypesModule,
+    forwardRef(() => AssetTypesModule),
     forwardRef(() => PortfoliosModule),
     forwardRef(() => AssetQuotesModule),
   ],

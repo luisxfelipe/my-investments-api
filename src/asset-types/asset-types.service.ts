@@ -2,18 +2,23 @@ import {
   BadRequestException,
   Injectable,
   NotFoundException,
+  Inject,
+  forwardRef,
 } from '@nestjs/common';
 import { CreateAssetTypeDto } from './dto/create-asset-type.dto';
 import { UpdateAssetTypeDto } from './dto/update-asset-type.dto';
 import { InjectRepository } from '@nestjs/typeorm';
 import { AssetType } from './entities/asset-type.entity';
 import { Repository } from 'typeorm';
+import { AssetsService } from '../assets/assets.service';
 
 @Injectable()
 export class AssetTypesService {
   constructor(
     @InjectRepository(AssetType)
     private readonly repository: Repository<AssetType>,
+    @Inject(forwardRef(() => AssetsService))
+    private readonly assetsService: AssetsService,
   ) {}
 
   async create(createAssetTypeDto: CreateAssetTypeDto): Promise<AssetType> {
@@ -78,6 +83,16 @@ export class AssetTypesService {
   async remove(id: number): Promise<void> {
     // Verifica se o tipo de ativo existe
     await this.findOne(id);
+
+    // Verifica se existem ativos usando este tipo de ativo
+    const assetsUsingAssetType =
+      await this.assetsService.countByAssetTypeId(id);
+
+    if (assetsUsingAssetType > 0) {
+      throw new BadRequestException(
+        `Cannot delete asset type. It is being used by ${assetsUsingAssetType} asset(s). Please update or remove those assets first.`,
+      );
+    }
 
     // Usa softDelete em vez de remove para fazer soft delete
     await this.repository.softDelete(id);
