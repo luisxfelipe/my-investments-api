@@ -11,6 +11,7 @@ import { SavingsGoalsService } from './savings-goals.service';
 import { CreateSavingGoalDto } from './dto/create-saving-goal.dto';
 import { UpdateSavingGoalDto } from './dto/update-saving-goal.dto';
 import { ApiOperation, ApiParam, ApiResponse } from '@nestjs/swagger';
+import { UserDecorator } from 'src/decorators/user.decorator';
 import { SavingGoalResponseDto } from './dto/saving-goal-response.dto';
 
 @Controller('savings-goals')
@@ -28,9 +29,10 @@ export class SavingsGoalsController {
   @ApiResponse({ status: 404, description: 'User not found' })
   async create(
     @Body() createSavingGoalDto: CreateSavingGoalDto,
+    @UserDecorator() userId: number,
   ): Promise<SavingGoalResponseDto> {
     return new SavingGoalResponseDto(
-      await this.savingsGoalsService.create(createSavingGoalDto),
+      await this.savingsGoalsService.create(createSavingGoalDto, userId),
     );
   }
 
@@ -41,8 +43,10 @@ export class SavingsGoalsController {
     description: 'List of all savings goals',
     type: [SavingGoalResponseDto],
   })
-  async findAll(): Promise<SavingGoalResponseDto[]> {
-    const savingsGoals = await this.savingsGoalsService.findAll();
+  async findAll(
+    @UserDecorator() userId: number,
+  ): Promise<SavingGoalResponseDto[]> {
+    const savingsGoals = await this.savingsGoalsService.findAll(userId);
     return savingsGoals.map(
       (savingsGoal) => new SavingGoalResponseDto(savingsGoal),
     );
@@ -57,9 +61,12 @@ export class SavingsGoalsController {
     type: SavingGoalResponseDto,
   })
   @ApiResponse({ status: 404, description: 'Savings Goal not found' })
-  async findOne(@Param('id') id: string): Promise<SavingGoalResponseDto> {
+  async findOne(
+    @Param('id') id: string,
+    @UserDecorator() userId: number,
+  ): Promise<SavingGoalResponseDto> {
     return new SavingGoalResponseDto(
-      await this.savingsGoalsService.findOne(+id),
+      await this.savingsGoalsService.findOne(+id, userId),
     );
   }
 
@@ -76,9 +83,10 @@ export class SavingsGoalsController {
   async update(
     @Param('id') id: string,
     @Body() updateSavingGoalDto: UpdateSavingGoalDto,
+    @UserDecorator() userId: number,
   ): Promise<SavingGoalResponseDto> {
     return new SavingGoalResponseDto(
-      await this.savingsGoalsService.update(+id, updateSavingGoalDto),
+      await this.savingsGoalsService.update(+id, updateSavingGoalDto, userId),
     );
   }
 
@@ -90,7 +98,14 @@ export class SavingsGoalsController {
     description: 'Savings Goal has been marked as successfully removed',
   })
   @ApiResponse({ status: 404, description: 'Savings Goal not found' })
-  async remove(@Param('id') id: string): Promise<void> {
-    await this.savingsGoalsService.remove(+id);
+  @ApiResponse({
+    status: 400,
+    description: 'Savings Goal is in use by portfolios',
+  })
+  async remove(
+    @Param('id') id: string,
+    @UserDecorator() userId: number,
+  ): Promise<void> {
+    await this.savingsGoalsService.remove(+id, userId);
   }
 }

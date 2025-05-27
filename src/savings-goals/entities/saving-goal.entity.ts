@@ -8,10 +8,12 @@ import {
   JoinColumn,
   ManyToOne,
   PrimaryGeneratedColumn,
+  Unique,
   UpdateDateColumn,
 } from 'typeorm';
 
 @Entity({ name: 'saving_goal' })
+@Unique('UQ_saving_goal_name_user', ['name', 'userId'])
 export class SavingGoal {
   @ApiProperty({ description: 'Savings Goal ID' })
   @PrimaryGeneratedColumn()

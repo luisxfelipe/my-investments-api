@@ -3,20 +3,14 @@ import { Type } from 'class-transformer';
 import {
   IsDate,
   IsDecimal,
-  IsInt,
   IsNotEmpty,
   IsOptional,
-  IsPositive,
   IsString,
   MaxLength,
 } from 'class-validator';
 
 export class CreateSavingGoalDto {
-  @ApiProperty({ description: 'User ID' })
-  @IsNotEmpty({ message: 'User ID is required' })
-  @IsInt({ message: 'User ID must be an integer' })
-  @IsPositive({ message: 'User ID must be a positive number' })
-  userId: number;
+  // userId removido: será obtido do token de autenticação via @UserDecorator
 
   @ApiProperty({ description: 'Name of the saving goal' })
   @IsNotEmpty({ message: 'Name is required' })

@@ -15,7 +15,7 @@ import { TransactionsModule } from 'src/transactions/transactions.module';
     UsersModule,
     forwardRef(() => AssetsModule),
     forwardRef(() => PlatformsModule),
-    SavingsGoalsModule,
+    forwardRef(() => SavingsGoalsModule),
     forwardRef(() => TransactionsModule),
   ],
   controllers: [PortfoliosController],

@@ -27,6 +27,7 @@ export class PortfoliosService {
     private readonly assetsService: AssetsService,
     @Inject(forwardRef(() => PlatformsService))
     private readonly platformsService: PlatformsService,
+    @Inject(forwardRef(() => SavingsGoalsService))
     private readonly savingsGoalsService: SavingsGoalsService,
     @Inject(forwardRef(() => TransactionsService))
     private readonly transactionsService: TransactionsService,
@@ -45,9 +46,12 @@ export class PortfoliosService {
     // Verifica se a plataforma existe para este usuário
     await this.platformsService.findOne(createPortfolioDto.platformId, userId);
 
-    // Verifica se a caixinha/objetivo existe, se foi fornecida
+    // Verifica se a caixinha/objetivo existe e pertence ao usuário, se foi fornecida
     if (createPortfolioDto.savingsGoalId) {
-      await this.savingsGoalsService.findOne(createPortfolioDto.savingsGoalId);
+      await this.savingsGoalsService.findOne(
+        createPortfolioDto.savingsGoalId,
+        userId,
+      );
     }
 
     // Verifica se já existe um portfolio para este usuário, ativo e plataforma
@@ -128,9 +132,12 @@ export class PortfoliosService {
     // Verifica se o portfolio existe e pertence ao usuário
     const portfolio = await this.findOne(id, userId);
 
-    // Verifica se a caixinha/objetivo existe, se foi fornecida
+    // Verifica se a caixinha/objetivo existe e pertence ao usuário, se foi fornecida
     if (updatePortfolioDto.savingsGoalId) {
-      await this.savingsGoalsService.findOne(updatePortfolioDto.savingsGoalId);
+      await this.savingsGoalsService.findOne(
+        updatePortfolioDto.savingsGoalId,
+        userId,
+      );
     }
 
     this.repository.merge(portfolio, updatePortfolioDto);
@@ -164,6 +171,16 @@ export class PortfoliosService {
   async countByPlatformId(platformId: number): Promise<number> {
     return this.repository.count({
       where: { platformId },
+    });
+  }
+
+  /**
+   * Conta quantos portfólios estão usando um objetivo de poupança específico
+   * Nota: Não filtramos por usuário aqui, pois um objetivo só pode ser usado por seu próprio dono
+   */
+  async countBySavingsGoalId(savingsGoalId: number): Promise<number> {
+    return this.repository.count({
+      where: { savingsGoalId },
     });
   }
 
