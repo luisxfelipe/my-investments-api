@@ -17,7 +17,6 @@ import {
   ApiQuery,
   ApiResponse,
   ApiTags,
-  getSchemaPath,
 } from '@nestjs/swagger';
 import { TransactionResponseDto } from './dto/transaction-response.dto';
 import { PaginatedResponseDto } from 'src/dtos/paginated-response.dto';

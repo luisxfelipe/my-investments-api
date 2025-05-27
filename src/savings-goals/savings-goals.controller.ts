@@ -10,7 +10,7 @@ import {
 import { SavingsGoalsService } from './savings-goals.service';
 import { CreateSavingGoalDto } from './dto/create-saving-goal.dto';
 import { UpdateSavingGoalDto } from './dto/update-saving-goal.dto';
-import { ApiOperation, ApiParam, ApiQuery, ApiResponse } from '@nestjs/swagger';
+import { ApiOperation, ApiParam, ApiResponse } from '@nestjs/swagger';
 import { SavingGoalResponseDto } from './dto/saving-goal-response.dto';
 
 @Controller('savings-goals')

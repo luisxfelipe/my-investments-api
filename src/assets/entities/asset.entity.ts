@@ -1,7 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { AssetType } from 'src/asset-types/entities/asset-type.entity';
 import { Category } from 'src/categories/entities/category.entity';
-import { Platform } from 'src/platforms/entities/platform.entity';
 import {
   Column,
   CreateDateColumn,

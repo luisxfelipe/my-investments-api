@@ -40,7 +40,7 @@ export class AuthGuard implements CanActivate {
       const payload: SignInPayloadDto =
         await this.jwtService.verifyAsync<SignInPayloadDto>(token, { secret });
       request['user'] = payload;
-    } catch (err) {
+    } catch {
       throw new UnauthorizedException('Invalid or expired token');
     }
     return true;

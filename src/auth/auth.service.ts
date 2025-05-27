@@ -27,7 +27,7 @@ export class AuthService {
     }
 
     return {
-      access_token: await this.jwtService.sign({
+      access_token: this.jwtService.sign({
         ...new SignInPayloadDto(user),
       }),
       user: new UserResponseDto(user),

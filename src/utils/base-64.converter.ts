@@ -9,7 +9,17 @@ export const authorizationToLoginPayload = (
     return undefined;
   }
 
-  return JSON.parse(
-    Buffer.from(authorizationSplitted[1], 'base64').toString('ascii'),
-  );
+  try {
+    const parsed = JSON.parse(
+      Buffer.from(authorizationSplitted[1], 'base64').toString('ascii'),
+    ) as SignInPayloadDto;
+
+    if (typeof parsed === 'object' && parsed !== null) {
+      return parsed;
+    }
+
+    return undefined;
+  } catch {
+    return undefined;
+  }
 };
