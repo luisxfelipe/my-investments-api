@@ -43,9 +43,10 @@ export class PlatformsController {
   })
   async create(
     @Body() createPlatformDto: CreatePlatformDto,
+    @UserDecorator() userId: number,
   ): Promise<PlatformResponseDto> {
     return new PlatformResponseDto(
-      await this.platformsService.create(createPlatformDto),
+      await this.platformsService.create(createPlatformDto, userId),
     );
   }
 
@@ -56,8 +57,10 @@ export class PlatformsController {
     description: 'List of all platforms',
     type: [PlatformResponseDto],
   })
-  async findAll(): Promise<PlatformResponseDto[]> {
-    const platforms = await this.platformsService.findAll();
+  async findAll(
+    @UserDecorator() userId: number,
+  ): Promise<PlatformResponseDto[]> {
+    const platforms = await this.platformsService.findAll(userId);
     return platforms.map((platform) => new PlatformResponseDto(platform));
   }
 
@@ -81,15 +84,17 @@ export class PlatformsController {
     type: PaginatedPlatformResponseDto,
   })
   async findAllWithPagination(
-    @Query('take') take?: string,
-    @Query('page') page?: string,
+    @UserDecorator() userId: number,
+    @Query('take') take: string = '10',
+    @Query('page') page: string = '1',
   ): Promise<PaginatedResponseDto<PlatformResponseDto>> {
-    const takeNumber = take ? parseInt(take) : 10;
-    const pageNumber = page ? parseInt(page) : 1;
+    const takeNumber = parseInt(take);
+    const pageNumber = parseInt(page);
 
     const platforms = await this.platformsService.findAllWithPagination(
       takeNumber,
       pageNumber,
+      userId,
     );
 
     // Transformar as plataformas em DTOs de resposta
@@ -115,8 +120,13 @@ export class PlatformsController {
     type: PlatformResponseDto,
   })
   @ApiResponse({ status: 404, description: 'Platform not found' })
-  async findOne(@Param('id') id: string): Promise<PlatformResponseDto> {
-    return new PlatformResponseDto(await this.platformsService.findOne(+id));
+  async findOne(
+    @Param('id') id: string,
+    @UserDecorator() userId: number,
+  ): Promise<PlatformResponseDto> {
+    return new PlatformResponseDto(
+      await this.platformsService.findOne(+id, userId),
+    );
   }
 
   @Patch(':id')
@@ -135,9 +145,10 @@ export class PlatformsController {
   async update(
     @Param('id') id: string,
     @Body() updatePlatformDto: UpdatePlatformDto,
+    @UserDecorator() userId: number,
   ): Promise<PlatformResponseDto> {
     return new PlatformResponseDto(
-      await this.platformsService.update(+id, updatePlatformDto),
+      await this.platformsService.update(+id, updatePlatformDto, userId),
     );
   }
   @Delete(':id')
@@ -148,8 +159,11 @@ export class PlatformsController {
     description: 'Platform has been marked as successfully removed',
   })
   @ApiResponse({ status: 404, description: 'Platform not found' })
-  async remove(@Param('id') id: string): Promise<void> {
-    await this.platformsService.remove(+id);
+  async remove(
+    @Param('id') id: string,
+    @UserDecorator() userId: number,
+  ): Promise<void> {
+    await this.platformsService.remove(+id, userId);
   }
 
   @Get(':id/dashboard')
@@ -192,11 +206,11 @@ export class PlatformsController {
   async getPlatformAssets(
     @Param('id') id: string,
     @UserDecorator() userId: number,
-    @Query('take') take?: string,
-    @Query('page') page?: string,
+    @Query('take') take: string = '10',
+    @Query('page') page: string = '1',
   ): Promise<PaginatedPlatformAssetsResponseDto> {
-    const takeNumber = take ? parseInt(take) : 10;
-    const pageNumber = page ? parseInt(page) : 1;
+    const takeNumber = parseInt(take);
+    const pageNumber = parseInt(page);
 
     return await this.platformsService.getPlatformAssets(
       +id,

@@ -38,40 +38,72 @@ export class PlatformsService {
     private readonly portfoliosService: PortfoliosService,
   ) {}
 
-  async create(createPlatformDto: CreatePlatformDto): Promise<Platform> {
-    // Verifica se já existe uma plataforma com o mesmo nome
-    const existingPlatform = await this.findOneByName(createPlatformDto.name);
+  async create(
+    createPlatformDto: CreatePlatformDto,
+    userId: number,
+  ): Promise<Platform> {
+    // Verifica se já existe uma plataforma com o mesmo nome para este usuário
+    const existingPlatform = await this.findOneByName(
+      createPlatformDto.name,
+      userId,
+    );
 
     if (existingPlatform) {
       throw new BadRequestException(
-        `There is already a platform with the name '${createPlatformDto.name}'`,
+        `There is already a platform with the name '${createPlatformDto.name}' for this user`,
       );
     }
 
-    const platform = this.repository.create(createPlatformDto);
+    const platform = this.repository.create({
+      ...createPlatformDto,
+      userId,
+    });
     return this.repository.save(platform);
   }
 
-  async findAll(): Promise<Platform[]> {
-    return this.repository.find();
+  async findAll(userId: number): Promise<Platform[]> {
+    return this.repository.find({
+      where: { userId },
+      order: { name: 'ASC' },
+    });
   }
 
   async findAllWithPagination(
     take = 10,
     page = 1,
+    userId: number,
   ): Promise<PaginatedResponseDto<Platform>> {
     const skip = (page - 1) * take;
 
     const [platforms, total] = await this.repository.findAndCount({
+      where: { userId },
       take,
       skip,
+      order: { name: 'ASC' },
     });
 
     return new PaginatedResponseDto(platforms, total, take, page);
   }
 
-  async findOne(id: number): Promise<Platform> {
-    const platform = await this.repository.findOne({ where: { id } });
+  async findOne(id: number, userId: number): Promise<Platform> {
+    const platform = await this.repository.findOne({
+      where: { id, userId },
+    });
+
+    if (!platform) {
+      throw new NotFoundException(
+        `Platform with ID ${id} not found for this user`,
+      );
+    }
+
+    return platform;
+  }
+
+  // Método para compatibilidade com outros serviços que só precisam verificar se a plataforma existe
+  async findOneById(id: number): Promise<Platform> {
+    const platform = await this.repository.findOne({
+      where: { id },
+    });
 
     if (!platform) {
       throw new NotFoundException(`Platform with ID ${id} not found`);
@@ -80,27 +112,33 @@ export class PlatformsService {
     return platform;
   }
 
-  async findOneByName(name: string): Promise<Platform | null> {
-    return this.repository.findOne({ where: { name } });
+  async findOneByName(name: string, userId: number): Promise<Platform | null> {
+    return this.repository.findOne({
+      where: { name, userId },
+    });
   }
 
   async update(
     id: number,
     updatePlatformDto: UpdatePlatformDto,
+    userId: number,
   ): Promise<Platform> {
     if (!updatePlatformDto || Object.keys(updatePlatformDto).length === 0) {
       throw new BadRequestException(`No properties provided for update`);
     }
 
-    const platform = await this.findOne(id);
+    const platform = await this.findOne(id, userId);
 
-    // Se estiver atualizando o nome, verifica se já existe outra plataforma com esse nome
+    // Se estiver atualizando o nome, verifica se já existe outra plataforma com esse nome para este usuário
     if (updatePlatformDto.name && updatePlatformDto.name !== platform.name) {
-      const existingPlatform = await this.findOneByName(updatePlatformDto.name);
+      const existingPlatform = await this.findOneByName(
+        updatePlatformDto.name,
+        userId,
+      );
 
       if (existingPlatform && existingPlatform.id !== id) {
         throw new BadRequestException(
-          `There is already a platform with the name '${updatePlatformDto.name}'`,
+          `There is already a platform with the name '${updatePlatformDto.name}' for this user`,
         );
       }
     }
@@ -108,12 +146,20 @@ export class PlatformsService {
     this.repository.merge(platform, updatePlatformDto);
     return this.repository.save(platform);
   }
-  async remove(id: number): Promise<void> {
-    // Verifica se a plataforma existe
-    await this.findOne(id);
+  async remove(id: number, userId: number): Promise<void> {
+    // Verifica se a plataforma existe para este usuário
+    await this.findOne(id, userId);
+
+    // Verifica se existem portfólios associados a esta plataforma
+    const portfolioCount = await this.portfoliosService.countByPlatformId(id);
+    if (portfolioCount > 0) {
+      throw new BadRequestException(
+        `Cannot remove platform with ID ${id} because it has ${portfolioCount} associated portfolios`,
+      );
+    }
 
     // Usa softRemove em vez de remove para fazer soft delete
-    await this.repository.softDelete(id);
+    await this.repository.softDelete({ id, userId });
   }
 
   /**
@@ -123,8 +169,8 @@ export class PlatformsService {
     platformId: number,
     userId: number,
   ): Promise<PlatformDashboardResponseDto> {
-    // Verifica se a plataforma existe
-    const platform = await this.findOne(platformId);
+    // Verifica se a plataforma existe para este usuário
+    const platform = await this.findOne(platformId, userId);
 
     // Buscar todas as transações da plataforma
     const transactions = await this.transactionsService.findAllByPlatformId(
@@ -209,8 +255,8 @@ export class PlatformsService {
     take = 10,
     page = 1,
   ): Promise<PaginatedPlatformAssetsResponseDto> {
-    // Verifica se a plataforma existe
-    await this.findOne(platformId);
+    // Verifica se a plataforma existe para este usuário
+    await this.findOne(platformId, userId);
 
     // Buscar todas as transações da plataforma
     const transactions = await this.transactionsService.findAllByPlatformId(

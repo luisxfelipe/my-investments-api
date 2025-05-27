@@ -42,8 +42,8 @@ export class PortfoliosService {
     // Verifica se o ativo existe
     await this.assetsService.findOne(createPortfolioDto.assetId, userId);
 
-    // Verifica se a plataforma existe
-    await this.platformsService.findOne(createPortfolioDto.platformId);
+    // Verifica se a plataforma existe para este usuário
+    await this.platformsService.findOne(createPortfolioDto.platformId, userId);
 
     // Verifica se a caixinha/objetivo existe, se foi fornecida
     if (createPortfolioDto.savingsGoalId) {
@@ -154,6 +154,16 @@ export class PortfoliosService {
   async countByAssetId(assetId: number, userId: number): Promise<number> {
     return this.repository.count({
       where: { assetId, userId },
+    });
+  }
+
+  /**
+   * Conta quantos portfólios estão usando uma plataforma específica
+   * Nota: Não filtramos por usuário aqui, pois uma plataforma só pode ser usada por seu próprio dono
+   */
+  async countByPlatformId(platformId: number): Promise<number> {
+    return this.repository.count({
+      where: { platformId },
     });
   }
 
