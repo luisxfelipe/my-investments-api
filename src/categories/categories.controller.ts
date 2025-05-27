@@ -12,6 +12,7 @@ import { CreateCategoryDto } from './dto/create-category.dto';
 import { UpdateCategoryDto } from './dto/update-category.dto';
 import { ApiOperation, ApiParam, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { CategoryResponseDto } from './dto/category-response.dto';
+import { UserDecorator } from 'src/decorators/user.decorator';
 
 @ApiTags('categories')
 @Controller('categories')
@@ -31,9 +32,10 @@ export class CategoriesController {
   })
   async create(
     @Body() createCategoryDto: CreateCategoryDto,
+    @UserDecorator() userId: number,
   ): Promise<CategoryResponseDto> {
     return new CategoryResponseDto(
-      await this.categoriesService.create(createCategoryDto),
+      await this.categoriesService.create(createCategoryDto, userId),
     );
   }
 
@@ -44,8 +46,10 @@ export class CategoriesController {
     description: 'List of all categories',
     type: [CategoryResponseDto],
   })
-  async findAll(): Promise<CategoryResponseDto[]> {
-    const categories = await this.categoriesService.findAll();
+  async findAll(
+    @UserDecorator() userId: number,
+  ): Promise<CategoryResponseDto[]> {
+    const categories = await this.categoriesService.findAll(userId);
     return categories.map((category) => new CategoryResponseDto(category));
   }
 
@@ -58,8 +62,13 @@ export class CategoriesController {
     type: CategoryResponseDto,
   })
   @ApiResponse({ status: 404, description: 'Category not found' })
-  async findOne(@Param('id') id: string): Promise<CategoryResponseDto> {
-    return new CategoryResponseDto(await this.categoriesService.findOne(+id));
+  async findOne(
+    @Param('id') id: string,
+    @UserDecorator() userId: number,
+  ): Promise<CategoryResponseDto> {
+    return new CategoryResponseDto(
+      await this.categoriesService.findOne(+id, userId),
+    );
   }
 
   @Patch(':id')
@@ -78,9 +87,10 @@ export class CategoriesController {
   async update(
     @Param('id') id: string,
     @Body() updateCategoryDto: UpdateCategoryDto,
+    @UserDecorator() userId: number,
   ): Promise<CategoryResponseDto> {
     return new CategoryResponseDto(
-      await this.categoriesService.update(+id, updateCategoryDto),
+      await this.categoriesService.update(+id, updateCategoryDto, userId),
     );
   }
 
@@ -92,7 +102,10 @@ export class CategoriesController {
     description: 'Category has been marked as successfully removed',
   })
   @ApiResponse({ status: 404, description: 'Category not found' })
-  async remove(@Param('id') id: string): Promise<void> {
-    await this.categoriesService.remove(+id);
+  async remove(
+    @Param('id') id: string,
+    @UserDecorator() userId: number,
+  ): Promise<void> {
+    await this.categoriesService.remove(+id, userId);
   }
 }

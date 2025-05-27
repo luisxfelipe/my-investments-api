@@ -32,7 +32,7 @@ export class AssetsService {
 
   async create(userId: number, createAssetDto: CreateAssetDto): Promise<Asset> {
     // Verifica se a categoria existe
-    await this.categoriesService.findOne(createAssetDto.categoryId);
+    await this.categoriesService.findOneById(createAssetDto.categoryId);
 
     // Verifica se o tipo de ativo existe
     await this.assetTypesService.findOne(createAssetDto.assetTypeId);
