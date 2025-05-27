@@ -34,8 +34,8 @@ export class AssetsService {
     // Verifica se a categoria existe
     await this.categoriesService.findOneById(createAssetDto.categoryId);
 
-    // Verifica se o tipo de ativo existe
-    await this.assetTypesService.findOne(createAssetDto.assetTypeId);
+    // Verifica se o tipo de ativo existe e pertence ao usuário
+    await this.assetTypesService.findOne(createAssetDto.assetTypeId, userId);
 
     // Verifica se já existe um ativo com o mesmo nome para este usuário
     if (createAssetDto.name) {
@@ -169,6 +169,7 @@ export class AssetsService {
 
   /**
    * Conta quantos ativos estão usando um tipo de ativo específico
+   * Nota: Não filtramos por usuário aqui, pois um tipo de ativo só pode ser usado por seu próprio dono
    */
   async countByAssetTypeId(assetTypeId: number): Promise<number> {
     return this.repository.count({

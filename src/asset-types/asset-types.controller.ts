@@ -12,6 +12,7 @@ import { CreateAssetTypeDto } from './dto/create-asset-type.dto';
 import { UpdateAssetTypeDto } from './dto/update-asset-type.dto';
 import { ApiOperation, ApiParam, ApiResponse } from '@nestjs/swagger';
 import { AssetTypeResponseDto } from './dto/asset-type-response.dto';
+import { UserDecorator } from 'src/decorators/user.decorator';
 
 @Controller('asset-types')
 export class AssetTypesController {
@@ -30,9 +31,10 @@ export class AssetTypesController {
   })
   async create(
     @Body() createAssetTypeDto: CreateAssetTypeDto,
+    @UserDecorator() userId: number,
   ): Promise<AssetTypeResponseDto> {
     return new AssetTypeResponseDto(
-      await this.assetTypesService.create(createAssetTypeDto),
+      await this.assetTypesService.create(createAssetTypeDto, userId),
     );
   }
 
@@ -43,8 +45,10 @@ export class AssetTypesController {
     description: 'List of all asset types',
     type: [AssetTypeResponseDto],
   })
-  async findAll(): Promise<AssetTypeResponseDto[]> {
-    const assetTypes = await this.assetTypesService.findAll();
+  async findAll(
+    @UserDecorator() userId: number,
+  ): Promise<AssetTypeResponseDto[]> {
+    const assetTypes = await this.assetTypesService.findAll(userId);
     return assetTypes.map((assetType) => new AssetTypeResponseDto(assetType));
   }
 
@@ -57,8 +61,13 @@ export class AssetTypesController {
     type: AssetTypeResponseDto,
   })
   @ApiResponse({ status: 404, description: 'Asset Type not found' })
-  async findOne(@Param('id') id: string): Promise<AssetTypeResponseDto> {
-    return new AssetTypeResponseDto(await this.assetTypesService.findOne(+id));
+  async findOne(
+    @Param('id') id: string,
+    @UserDecorator() userId: number,
+  ): Promise<AssetTypeResponseDto> {
+    return new AssetTypeResponseDto(
+      await this.assetTypesService.findOne(+id, userId),
+    );
   }
 
   @Patch(':id')
@@ -78,9 +87,10 @@ export class AssetTypesController {
   async update(
     @Param('id') id: string,
     @Body() updateAssetTypeDto: UpdateAssetTypeDto,
+    @UserDecorator() userId: number,
   ): Promise<AssetTypeResponseDto> {
     return new AssetTypeResponseDto(
-      await this.assetTypesService.update(+id, updateAssetTypeDto),
+      await this.assetTypesService.update(+id, updateAssetTypeDto, userId),
     );
   }
 
@@ -92,7 +102,10 @@ export class AssetTypesController {
     description: 'Asset Type has been marked as successfully removed',
   })
   @ApiResponse({ status: 404, description: 'Asset Type not found' })
-  async remove(@Param('id') id: string): Promise<void> {
-    await this.assetTypesService.remove(+id);
+  async remove(
+    @Param('id') id: string,
+    @UserDecorator() userId: number,
+  ): Promise<void> {
+    await this.assetTypesService.remove(+id, userId);
   }
 }

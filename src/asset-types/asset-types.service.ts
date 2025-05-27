@@ -21,57 +21,77 @@ export class AssetTypesService {
     private readonly assetsService: AssetsService,
   ) {}
 
-  async create(createAssetTypeDto: CreateAssetTypeDto): Promise<AssetType> {
-    // Verifica se já existe um tipo de ativo com o mesmo nome
-    const existingAssetType = await this.findOneByName(createAssetTypeDto.name);
+  async create(
+    createAssetTypeDto: CreateAssetTypeDto,
+    userId: number,
+  ): Promise<AssetType> {
+    // Verifica se já existe um tipo de ativo com o mesmo nome para este usuário
+    const existingAssetType = await this.findOneByName(
+      createAssetTypeDto.name,
+      userId,
+    );
 
     if (existingAssetType) {
       throw new BadRequestException(
-        `There is already an asset type with the name '${createAssetTypeDto.name}'`,
+        `There is already an asset type with the name '${createAssetTypeDto.name}' for this user`,
       );
     }
 
-    const assetType = this.repository.create(createAssetTypeDto);
+    const assetType = this.repository.create({
+      ...createAssetTypeDto,
+      userId,
+    });
     return this.repository.save(assetType);
   }
 
-  async findAll(): Promise<AssetType[]> {
-    return this.repository.find();
+  async findAll(userId: number): Promise<AssetType[]> {
+    return this.repository.find({
+      where: { userId },
+      order: { name: 'ASC' },
+    });
   }
 
-  async findOne(id: number): Promise<AssetType> {
-    const assetType = await this.repository.findOne({ where: { id } });
+  async findOne(id: number, userId: number): Promise<AssetType> {
+    const assetType = await this.repository.findOne({
+      where: { id, userId },
+    });
 
     if (!assetType) {
-      throw new NotFoundException(`Asset Type with ID ${id} not found`);
+      throw new NotFoundException(
+        `Asset Type with ID ${id} not found for this user`,
+      );
     }
 
     return assetType;
   }
 
-  async findOneByName(name: string): Promise<AssetType | null> {
-    return this.repository.findOne({ where: { name } });
+  async findOneByName(name: string, userId: number): Promise<AssetType | null> {
+    return this.repository.findOne({
+      where: { name, userId },
+    });
   }
 
   async update(
     id: number,
     updateAssetTypeDto: UpdateAssetTypeDto,
+    userId: number,
   ): Promise<AssetType> {
     if (!updateAssetTypeDto || Object.keys(updateAssetTypeDto).length === 0) {
       throw new BadRequestException(`No properties provided for update`);
     }
 
-    const assetType = await this.findOne(id);
+    const assetType = await this.findOne(id, userId);
 
-    // Se estiver atualizando o nome, verifica se já existe outro tipo de ativo com esse nome
+    // Se estiver atualizando o nome, verifica se já existe outro tipo de ativo com esse nome para este usuário
     if (updateAssetTypeDto.name && updateAssetTypeDto.name !== assetType.name) {
       const existingAssetType = await this.findOneByName(
         updateAssetTypeDto.name,
+        userId,
       );
 
       if (existingAssetType && existingAssetType.id !== id) {
         throw new BadRequestException(
-          `There is already an asset type with the name '${updateAssetTypeDto.name}'`,
+          `There is already an asset type with the name '${updateAssetTypeDto.name}' for this user`,
         );
       }
     }
@@ -80,9 +100,9 @@ export class AssetTypesService {
     return this.repository.save(assetType);
   }
 
-  async remove(id: number): Promise<void> {
-    // Verifica se o tipo de ativo existe
-    await this.findOne(id);
+  async remove(id: number, userId: number): Promise<void> {
+    // Verifica se o tipo de ativo existe e pertence ao usuário
+    await this.findOne(id, userId);
 
     // Verifica se existem ativos usando este tipo de ativo
     const assetsUsingAssetType =
@@ -96,5 +116,18 @@ export class AssetTypesService {
 
     // Usa softDelete em vez de remove para fazer soft delete
     await this.repository.softDelete(id);
+  }
+
+  // Método para compatibilidade com outros serviços que só precisam verificar se o tipo de ativo existe
+  async findOneById(id: number): Promise<AssetType> {
+    const assetType = await this.repository.findOne({
+      where: { id },
+    });
+
+    if (!assetType) {
+      throw new NotFoundException(`Asset Type with ID ${id} not found`);
+    }
+
+    return assetType;
   }
 }
