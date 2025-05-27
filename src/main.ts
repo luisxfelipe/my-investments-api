@@ -12,10 +12,7 @@ async function bootstrap() {
   const port = configService.get<number>('PORT') || 3000;
 
   const cors = {
-    origin: [
-      'http://localhost:3000',
-      'http://localhost:3001',
-    ],
+    origin: ['http://localhost:3000', 'http://localhost:3001'],
     methods: 'GET, HEAD, PUT, PATCH, POST, DELETE, OPTIONS',
     preflightContinue: false,
     optionsSuccessStatus: 204,

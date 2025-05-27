@@ -1,4 +1,8 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { SavingGoal } from './entities/saving-goal.entity';
 import { UsersService } from 'src/users/users.service';
 import { Repository } from 'typeorm';
@@ -12,7 +16,7 @@ export class SavingsGoalsService {
     @InjectRepository(SavingGoal)
     private readonly repository: Repository<SavingGoal>,
     private readonly usersService: UsersService,
-  ) { }
+  ) {}
 
   async create(createSavingGoalDto: CreateSavingGoalDto): Promise<SavingGoal> {
     // Verifica se o usuário existe
@@ -41,7 +45,10 @@ export class SavingsGoalsService {
     return savingsGoal;
   }
 
-  async update(id: number, updateSavingGoalDto: UpdateSavingGoalDto): Promise<SavingGoal> {
+  async update(
+    id: number,
+    updateSavingGoalDto: UpdateSavingGoalDto,
+  ): Promise<SavingGoal> {
     if (!updateSavingGoalDto || Object.keys(updateSavingGoalDto).length === 0) {
       throw new BadRequestException(`No properties provided for update`);
     }

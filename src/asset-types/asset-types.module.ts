@@ -10,4 +10,4 @@ import { AssetType } from './entities/asset-type.entity';
   providers: [AssetTypesService],
   exports: [AssetTypesService],
 })
-export class AssetTypesModule { }
+export class AssetTypesModule {}

@@ -1,4 +1,8 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { CreateAssetTypeDto } from './dto/create-asset-type.dto';
 import { UpdateAssetTypeDto } from './dto/update-asset-type.dto';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -10,14 +14,16 @@ export class AssetTypesService {
   constructor(
     @InjectRepository(AssetType)
     private readonly repository: Repository<AssetType>,
-  ) { }
+  ) {}
 
   async create(createAssetTypeDto: CreateAssetTypeDto): Promise<AssetType> {
     // Verifica se já existe um tipo de ativo com o mesmo nome
     const existingAssetType = await this.findOneByName(createAssetTypeDto.name);
 
     if (existingAssetType) {
-      throw new BadRequestException(`There is already an asset type with the name '${createAssetTypeDto.name}'`);
+      throw new BadRequestException(
+        `There is already an asset type with the name '${createAssetTypeDto.name}'`,
+      );
     }
 
     const assetType = this.repository.create(createAssetTypeDto);
@@ -42,7 +48,10 @@ export class AssetTypesService {
     return this.repository.findOne({ where: { name } });
   }
 
-  async update(id: number, updateAssetTypeDto: UpdateAssetTypeDto): Promise<AssetType> {
+  async update(
+    id: number,
+    updateAssetTypeDto: UpdateAssetTypeDto,
+  ): Promise<AssetType> {
     if (!updateAssetTypeDto || Object.keys(updateAssetTypeDto).length === 0) {
       throw new BadRequestException(`No properties provided for update`);
     }
@@ -51,10 +60,14 @@ export class AssetTypesService {
 
     // Se estiver atualizando o nome, verifica se já existe outro tipo de ativo com esse nome
     if (updateAssetTypeDto.name && updateAssetTypeDto.name !== assetType.name) {
-      const existingAssetType = await this.findOneByName(updateAssetTypeDto.name);
+      const existingAssetType = await this.findOneByName(
+        updateAssetTypeDto.name,
+      );
 
       if (existingAssetType && existingAssetType.id !== id) {
-        throw new BadRequestException(`There is already an asset type with the name '${updateAssetTypeDto.name}'`);
+        throw new BadRequestException(
+          `There is already an asset type with the name '${updateAssetTypeDto.name}'`,
+        );
       }
     }
 

@@ -6,12 +6,9 @@ import { SavingGoal } from './entities/saving-goal.entity';
 import { UsersModule } from 'src/users/users.module';
 
 @Module({
-  imports: [
-    TypeOrmModule.forFeature([SavingGoal]),
-    UsersModule,
-  ],
+  imports: [TypeOrmModule.forFeature([SavingGoal]), UsersModule],
   controllers: [SavingsGoalsController],
   providers: [SavingsGoalsService],
   exports: [SavingsGoalsService],
 })
-export class SavingsGoalsModule { }
+export class SavingsGoalsModule {}

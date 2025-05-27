@@ -1,4 +1,8 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { CreateCategoryDto } from './dto/create-category.dto';
 import { UpdateCategoryDto } from './dto/update-category.dto';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -10,14 +14,16 @@ export class CategoriesService {
   constructor(
     @InjectRepository(Category)
     private readonly repository: Repository<Category>,
-  ) { }
+  ) {}
 
   async create(createCategoryDto: CreateCategoryDto): Promise<Category> {
     // Verifica se já existe uma categoria com o mesmo nome
     const existingCategory = await this.findOneByName(createCategoryDto.name);
 
     if (existingCategory) {
-      throw new BadRequestException(`There is already a category with the name '${createCategoryDto.name}'`);
+      throw new BadRequestException(
+        `There is already a category with the name '${createCategoryDto.name}'`,
+      );
     }
 
     const category = this.repository.create(createCategoryDto);
@@ -42,7 +48,10 @@ export class CategoriesService {
     return this.repository.findOne({ where: { name } });
   }
 
-  async update(id: number, updateCategoryDto: UpdateCategoryDto): Promise<Category> {
+  async update(
+    id: number,
+    updateCategoryDto: UpdateCategoryDto,
+  ): Promise<Category> {
     if (!updateCategoryDto || Object.keys(updateCategoryDto).length === 0) {
       throw new BadRequestException(`No properties provided for update`);
     }
@@ -54,7 +63,9 @@ export class CategoriesService {
       const existingCategory = await this.findOneByName(updateCategoryDto.name);
 
       if (existingCategory && existingCategory.id !== id) {
-        throw new BadRequestException(`There is already a category with the name '${updateCategoryDto.name}'`);
+        throw new BadRequestException(
+          `There is already a category with the name '${updateCategoryDto.name}'`,
+        );
       }
     }
 

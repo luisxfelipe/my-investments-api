@@ -1,4 +1,8 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { CreateTransactionTypeDto } from './dto/create-transaction-type.dto';
 import { UpdateTransactionTypeDto } from './dto/update-transaction-type.dto';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -10,14 +14,20 @@ export class TransactionTypesService {
   constructor(
     @InjectRepository(TransactionType)
     private readonly repository: Repository<TransactionType>,
-  ) { }
+  ) {}
 
-  async create(createTransactionTypeDto: CreateTransactionTypeDto): Promise<TransactionType> {
+  async create(
+    createTransactionTypeDto: CreateTransactionTypeDto,
+  ): Promise<TransactionType> {
     // Verifica se já existe um tipo de transação com o mesmo nome
-    const existingTransactionType = await this.findOneByName(createTransactionTypeDto.name);
+    const existingTransactionType = await this.findOneByName(
+      createTransactionTypeDto.name,
+    );
 
     if (existingTransactionType) {
-      throw new BadRequestException(`There is already a transaction type with the name '${createTransactionTypeDto.name}'`);
+      throw new BadRequestException(
+        `There is already a transaction type with the name '${createTransactionTypeDto.name}'`,
+      );
     }
 
     const transactionType = this.repository.create(createTransactionTypeDto);
@@ -42,19 +52,32 @@ export class TransactionTypesService {
     return this.repository.findOne({ where: { name } });
   }
 
-  async update(id: number, updateTransactionTypeDto: UpdateTransactionTypeDto): Promise<TransactionType> {
-    if (!updateTransactionTypeDto || Object.keys(updateTransactionTypeDto).length === 0) {
+  async update(
+    id: number,
+    updateTransactionTypeDto: UpdateTransactionTypeDto,
+  ): Promise<TransactionType> {
+    if (
+      !updateTransactionTypeDto ||
+      Object.keys(updateTransactionTypeDto).length === 0
+    ) {
       throw new BadRequestException(`No properties provided for update`);
     }
 
     const transactionType = await this.findOne(id);
 
     // Se estiver atualizando o nome, verifica se já existe outro tipo de transação com esse nome
-    if (updateTransactionTypeDto.name && updateTransactionTypeDto.name !== transactionType.name) {
-      const existingTransactionType = await this.findOneByName(updateTransactionTypeDto.name);
+    if (
+      updateTransactionTypeDto.name &&
+      updateTransactionTypeDto.name !== transactionType.name
+    ) {
+      const existingTransactionType = await this.findOneByName(
+        updateTransactionTypeDto.name,
+      );
 
       if (existingTransactionType && existingTransactionType.id !== id) {
-        throw new BadRequestException(`There is already a transaction type with the name '${updateTransactionTypeDto.name}'`);
+        throw new BadRequestException(
+          `There is already a transaction type with the name '${updateTransactionTypeDto.name}'`,
+        );
       }
     }
 

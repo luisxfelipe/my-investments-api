@@ -1,4 +1,12 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  Patch,
+  Param,
+  Delete,
+} from '@nestjs/common';
 import { AssetTypesService } from './asset-types.service';
 import { CreateAssetTypeDto } from './dto/create-asset-type.dto';
 import { UpdateAssetTypeDto } from './dto/update-asset-type.dto';
@@ -7,28 +15,47 @@ import { AssetTypeResponseDto } from './dto/asset-type-response.dto';
 
 @Controller('asset-types')
 export class AssetTypesController {
-  constructor(private readonly assetTypesService: AssetTypesService) { }
+  constructor(private readonly assetTypesService: AssetTypesService) {}
 
   @Post()
   @ApiOperation({ summary: 'Create a new asset type' })
-  @ApiResponse({ status: 201, description: 'The asset type has been successfully created', type: AssetTypeResponseDto })
-  @ApiResponse({ status: 400, description: 'Invalid data or asset type name already exists' })
-  async create(@Body() createAssetTypeDto: CreateAssetTypeDto): Promise<AssetTypeResponseDto> {
-    return new AssetTypeResponseDto(await this.assetTypesService.create(createAssetTypeDto));
+  @ApiResponse({
+    status: 201,
+    description: 'The asset type has been successfully created',
+    type: AssetTypeResponseDto,
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'Invalid data or asset type name already exists',
+  })
+  async create(
+    @Body() createAssetTypeDto: CreateAssetTypeDto,
+  ): Promise<AssetTypeResponseDto> {
+    return new AssetTypeResponseDto(
+      await this.assetTypesService.create(createAssetTypeDto),
+    );
   }
 
   @Get()
   @ApiOperation({ summary: 'Find all asset types' })
-  @ApiResponse({ status: 200, description: 'List of all asset types', type: [AssetTypeResponseDto] })
+  @ApiResponse({
+    status: 200,
+    description: 'List of all asset types',
+    type: [AssetTypeResponseDto],
+  })
   async findAll(): Promise<AssetTypeResponseDto[]> {
     const assetTypes = await this.assetTypesService.findAll();
-    return assetTypes.map(assetType => new AssetTypeResponseDto(assetType));
+    return assetTypes.map((assetType) => new AssetTypeResponseDto(assetType));
   }
 
   @Get(':id')
   @ApiOperation({ summary: 'Find one asset type by id' })
   @ApiParam({ name: 'id', description: 'Asset Type id' })
-  @ApiResponse({ status: 200, description: 'The found asset type', type: AssetTypeResponseDto })
+  @ApiResponse({
+    status: 200,
+    description: 'The found asset type',
+    type: AssetTypeResponseDto,
+  })
   @ApiResponse({ status: 404, description: 'Asset Type not found' })
   async findOne(@Param('id') id: string): Promise<AssetTypeResponseDto> {
     return new AssetTypeResponseDto(await this.assetTypesService.findOne(+id));
@@ -37,17 +64,33 @@ export class AssetTypesController {
   @Patch(':id')
   @ApiOperation({ summary: 'Update an asset type by id' })
   @ApiParam({ name: 'id', description: 'Asset Type id' })
-  @ApiResponse({ status: 200, description: 'The updated asset type', type: AssetTypeResponseDto })
-  @ApiResponse({ status: 400, description: 'No data provided for update or asset type name already exists' })
+  @ApiResponse({
+    status: 200,
+    description: 'The updated asset type',
+    type: AssetTypeResponseDto,
+  })
+  @ApiResponse({
+    status: 400,
+    description:
+      'No data provided for update or asset type name already exists',
+  })
   @ApiResponse({ status: 404, description: 'Asset Type not found' })
-  async update(@Param('id') id: string, @Body() updateAssetTypeDto: UpdateAssetTypeDto): Promise<AssetTypeResponseDto> {
-    return new AssetTypeResponseDto(await this.assetTypesService.update(+id, updateAssetTypeDto));
+  async update(
+    @Param('id') id: string,
+    @Body() updateAssetTypeDto: UpdateAssetTypeDto,
+  ): Promise<AssetTypeResponseDto> {
+    return new AssetTypeResponseDto(
+      await this.assetTypesService.update(+id, updateAssetTypeDto),
+    );
   }
 
   @Delete(':id')
   @ApiOperation({ summary: 'Remove an asset type by id (soft delete)' })
   @ApiParam({ name: 'id', description: 'Asset Type id' })
-  @ApiResponse({ status: 200, description: 'Asset Type has been marked as successfully removed' })
+  @ApiResponse({
+    status: 200,
+    description: 'Asset Type has been marked as successfully removed',
+  })
   @ApiResponse({ status: 404, description: 'Asset Type not found' })
   async remove(@Param('id') id: string): Promise<void> {
     await this.assetTypesService.remove(+id);

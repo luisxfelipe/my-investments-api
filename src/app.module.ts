@@ -60,4 +60,4 @@ import { AssetQuotesModule } from './asset-quotes/asset-quotes.module';
   controllers: [],
   providers: [AppService],
 })
-export class AppModule { }
+export class AppModule {}
