@@ -1,11 +1,12 @@
-import { Controller, Get, Post, Body, Patch, Param } from '@nestjs/common';
+import { Controller, Get, Post, Body, Patch } from '@nestjs/common';
 import { UsersService } from './users.service';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
-import { ApiOperation, ApiParam, ApiResponse, ApiTags } from '@nestjs/swagger';
-import { User } from './entities/user.entity';
+import { ChangePasswordDto } from './dto/change-password.dto';
+import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { UserResponseDto } from './dto/user-response.dto';
 import { Public } from 'src/decorators/is-public.decorator';
+import { UserDecorator } from 'src/decorators/user.decorator';
 
 @ApiTags('users')
 @Controller('users')
@@ -26,31 +27,51 @@ export class UsersController {
     return new UserResponseDto(await this.usersService.create(createUserDto));
   }
 
-  @Get(':id')
-  @ApiOperation({ summary: 'Find one user by id' })
-  @ApiParam({ name: 'id', description: 'User id' })
+  @Get('me')
+  @ApiOperation({ summary: 'Get my profile' })
   @ApiResponse({
     status: 200,
-    description: 'The found user',
+    description: 'The current user profile',
     type: UserResponseDto,
   })
   @ApiResponse({ status: 404, description: 'User not found' })
-  async findOne(@Param('id') id: string): Promise<UserResponseDto> {
-    return new UserResponseDto(await this.usersService.findOne(+id));
+  async getMyProfile(
+    @UserDecorator() userId: number,
+  ): Promise<UserResponseDto> {
+    return new UserResponseDto(await this.usersService.findOne(userId));
   }
 
-  @Patch(':id')
-  @ApiOperation({ summary: 'Update a user by id' })
-  @ApiParam({ name: 'id', description: 'User id' })
-  @ApiResponse({ status: 200, description: 'The updated user', type: User })
-  @ApiResponse({ status: 400, description: 'No data provided for update' })
+  @Patch('me')
+  @ApiOperation({ summary: 'Update my profile (name and email only)' })
+  @ApiResponse({
+    status: 200,
+    description: 'The updated user profile',
+    type: UserResponseDto,
+  })
+  @ApiResponse({ status: 400, description: 'Invalid data provided' })
   @ApiResponse({ status: 404, description: 'User not found' })
-  async update(
-    @Param('id') id: string,
+  async updateMyProfile(
     @Body() updateUserDto: UpdateUserDto,
+    @UserDecorator() userId: number,
   ): Promise<UserResponseDto> {
     return new UserResponseDto(
-      await this.usersService.update(+id, updateUserDto || {}),
+      await this.usersService.updateProfile(userId, updateUserDto),
     );
+  }
+
+  @Patch('me/password')
+  @ApiOperation({ summary: 'Change my password' })
+  @ApiResponse({
+    status: 200,
+    description: 'Password changed successfully',
+  })
+  @ApiResponse({ status: 400, description: 'Invalid current password or data' })
+  @ApiResponse({ status: 404, description: 'User not found' })
+  async changeMyPassword(
+    @Body() changePasswordDto: ChangePasswordDto,
+    @UserDecorator() userId: number,
+  ): Promise<{ message: string }> {
+    await this.usersService.changePassword(userId, changePasswordDto);
+    return { message: 'Password changed successfully' };
   }
 }
