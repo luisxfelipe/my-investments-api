@@ -31,9 +31,12 @@ export class PortfoliosService {
     private readonly transactionsService: TransactionsService,
   ) {}
 
-  async create(createPortfolioDto: CreatePortfolioDto): Promise<Portfolio> {
+  async create(
+    createPortfolioDto: CreatePortfolioDto,
+    userId: number,
+  ): Promise<Portfolio> {
     // Verifica se o usuário existe
-    await this.usersService.findOne(createPortfolioDto.userId);
+    await this.usersService.findOne(userId);
 
     // Verifica se o ativo existe
     await this.assetsService.findOne(createPortfolioDto.assetId);
@@ -49,7 +52,7 @@ export class PortfoliosService {
     // Verifica se já existe um portfolio para este usuário, ativo e plataforma
     const existingPortfolio = await this.repository.findOne({
       where: {
-        userId: createPortfolioDto.userId,
+        userId,
         assetId: createPortfolioDto.assetId,
         platformId: createPortfolioDto.platformId,
       },
@@ -60,22 +63,34 @@ export class PortfoliosService {
         `Portfolio already exists for this user, asset and platform`,
       );
     }
-    const portfolio = this.repository.create(createPortfolioDto);
+
+    const portfolio = this.repository.create({
+      ...createPortfolioDto,
+      userId, // Usar o userId do usuário autenticado
+      currentBalance: 0,
+      averagePrice: 0,
+    });
     const savedPortfolio = await this.repository.save(portfolio);
 
     // Recalcular balance e preço médio após criação
     return this.recalculatePortfolioBalance(savedPortfolio.id);
   }
 
-  async findAll(): Promise<Portfolio[]> {
+  async findAll(userId: number): Promise<Portfolio[]> {
     return this.repository.find({
+      where: { userId },
       relations: ['user', 'asset', 'platform', 'savingsGoal'],
     });
   }
 
-  async findOne(id: number): Promise<Portfolio> {
+  async findOne(id: number, userId?: number): Promise<Portfolio> {
+    const whereClause: { id: number; userId?: number } = { id };
+    if (userId) {
+      whereClause.userId = userId;
+    }
+
     const portfolio = await this.repository.findOne({
-      where: { id },
+      where: whereClause,
       relations: ['user', 'asset', 'platform', 'savingsGoal'],
     });
 
@@ -89,58 +104,20 @@ export class PortfoliosService {
   async update(
     id: number,
     updatePortfolioDto: UpdatePortfolioDto,
+    userId: number,
   ): Promise<Portfolio> {
     if (!updatePortfolioDto || Object.keys(updatePortfolioDto).length === 0) {
       throw new BadRequestException(`No properties provided for update`);
     }
 
-    // Verifica se o portfolio existe
-    const portfolio = await this.findOne(id);
-
-    // Verifica se o usuário existe, se foi fornecido
-    if (updatePortfolioDto.userId) {
-      await this.usersService.findOne(updatePortfolioDto.userId);
-    }
-
-    // Verifica se o ativo existe, se foi fornecido
-    if (updatePortfolioDto.assetId) {
-      await this.assetsService.findOne(updatePortfolioDto.assetId);
-    }
-
-    // Verifica se a plataforma existe, se foi fornecida
-    if (updatePortfolioDto.platformId) {
-      await this.platformsService.findOne(updatePortfolioDto.platformId);
-    }
+    // Verifica se o portfolio existe e pertence ao usuário
+    const portfolio = await this.findOne(id, userId);
 
     // Verifica se a caixinha/objetivo existe, se foi fornecida
     if (updatePortfolioDto.savingsGoalId) {
       await this.savingsGoalsService.findOne(updatePortfolioDto.savingsGoalId);
     }
 
-    // Se estiver alterando usuário, ativo ou plataforma, verifica se já existe outro portfolio com essa combinação
-    if (
-      updatePortfolioDto.userId ||
-      updatePortfolioDto.assetId ||
-      updatePortfolioDto.platformId
-    ) {
-      const userId = updatePortfolioDto.userId || portfolio.userId;
-      const assetId = updatePortfolioDto.assetId || portfolio.assetId;
-      const platformId = updatePortfolioDto.platformId || portfolio.platformId;
-
-      const existingPortfolio = await this.repository.findOne({
-        where: {
-          userId,
-          assetId,
-          platformId,
-        },
-      });
-
-      if (existingPortfolio && existingPortfolio.id !== id) {
-        throw new BadRequestException(
-          `Portfolio already exists for this user, asset and platform`,
-        );
-      }
-    }
     this.repository.merge(portfolio, updatePortfolioDto);
     const updatedPortfolio = await this.repository.save(portfolio);
 
@@ -148,9 +125,9 @@ export class PortfoliosService {
     return this.recalculatePortfolioBalance(updatedPortfolio.id);
   }
 
-  async remove(id: number): Promise<void> {
-    // Verifica se o portfolio existe
-    await this.findOne(id);
+  async remove(id: number, userId: number): Promise<void> {
+    // Verifica se o portfolio existe e pertence ao usuário
+    await this.findOne(id, userId);
 
     // Usa softDelete em vez de remove para fazer soft delete
     await this.repository.softDelete(id);

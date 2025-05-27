@@ -12,6 +12,7 @@ import { CreatePortfolioDto } from './dto/create-portfolio.dto';
 import { UpdatePortfolioDto } from './dto/update-portfolio.dto';
 import { ApiOperation, ApiParam, ApiResponse } from '@nestjs/swagger';
 import { PortfolioResponseDto } from './dto/portfolio-response.dto';
+import { UserDecorator } from '../decorators/user.decorator';
 
 @Controller('portfolios')
 export class PortfoliosController {
@@ -35,9 +36,10 @@ export class PortfoliosController {
   })
   async create(
     @Body() createPortfolioDto: CreatePortfolioDto,
+    @UserDecorator() userId: number,
   ): Promise<PortfolioResponseDto> {
     return new PortfolioResponseDto(
-      await this.portfoliosService.create(createPortfolioDto),
+      await this.portfoliosService.create(createPortfolioDto, userId),
     );
   }
 
@@ -48,8 +50,10 @@ export class PortfoliosController {
     description: 'List of portfolios',
     type: [PortfolioResponseDto],
   })
-  async findAll(): Promise<PortfolioResponseDto[]> {
-    const portfolios = await this.portfoliosService.findAll();
+  async findAll(
+    @UserDecorator() userId: number,
+  ): Promise<PortfolioResponseDto[]> {
+    const portfolios = await this.portfoliosService.findAll(userId);
 
     return portfolios.map((portfolio) => new PortfolioResponseDto(portfolio));
   }
@@ -63,8 +67,13 @@ export class PortfoliosController {
     type: PortfolioResponseDto,
   })
   @ApiResponse({ status: 404, description: 'Portfolio not found' })
-  async findOne(@Param('id') id: string): Promise<PortfolioResponseDto> {
-    return new PortfolioResponseDto(await this.portfoliosService.findOne(+id));
+  async findOne(
+    @Param('id') id: string,
+    @UserDecorator() userId: number,
+  ): Promise<PortfolioResponseDto> {
+    return new PortfolioResponseDto(
+      await this.portfoliosService.findOne(+id, userId),
+    );
   }
 
   @Patch(':id')
@@ -87,9 +96,10 @@ export class PortfoliosController {
   async update(
     @Param('id') id: string,
     @Body() updatePortfolioDto: UpdatePortfolioDto,
+    @UserDecorator() userId: number,
   ): Promise<PortfolioResponseDto> {
     return new PortfolioResponseDto(
-      await this.portfoliosService.update(+id, updatePortfolioDto),
+      await this.portfoliosService.update(+id, updatePortfolioDto, userId),
     );
   }
 
@@ -101,7 +111,10 @@ export class PortfoliosController {
     description: 'Portfolio has been marked as successfully removed',
   })
   @ApiResponse({ status: 404, description: 'Portfolio not found' })
-  async remove(@Param('id') id: string): Promise<void> {
-    await this.portfoliosService.remove(+id);
+  async remove(
+    @Param('id') id: string,
+    @UserDecorator() userId: number,
+  ): Promise<void> {
+    await this.portfoliosService.remove(+id, userId);
   }
 }
