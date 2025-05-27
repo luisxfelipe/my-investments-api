@@ -40,15 +40,13 @@ export class TransactionsService {
       userId,
     );
 
-    // ✅ NOVA VALIDAÇÃO: Verificar saldo para vendas (ID 2 = VENDA)
+    // ✅ VALIDAÇÃO SEGURA: Verificar saldo para vendas (ID 2 = VENDA)
     if (createTransactionDto.transactionTypeId === 2) {
-      if (portfolio.currentBalance < createTransactionDto.quantity) {
-        throw new BadRequestException(
-          `Insufficient balance for sale. ` +
-            `Available: ${portfolio.currentBalance}, ` +
-            `Attempted: ${createTransactionDto.quantity}`,
-        );
-      }
+      await this.portfoliosService.validateSaleTransaction(
+        createTransactionDto.portfolioId,
+        createTransactionDto.quantity,
+        userId,
+      );
     }
 
     const transaction = this.repository.create(createTransactionDto);
@@ -182,7 +180,7 @@ export class TransactionsService {
       );
     }
 
-    // ✅ NOVA VALIDAÇÃO: Verificar saldo para vendas (ID 2 = VENDA)
+    // ✅ VALIDAÇÃO SEGURA: Verificar saldo para vendas
     const isChangingToSale = updateTransactionDto.transactionTypeId === 2;
     const isAlreadySale = transaction.transactionTypeId === 2;
     const isChangingQuantity = updateTransactionDto.quantity !== undefined;
@@ -190,29 +188,37 @@ export class TransactionsService {
     if (isChangingToSale || (isAlreadySale && isChangingQuantity)) {
       const portfolioId =
         updateTransactionDto.portfolioId || transaction.portfolioId;
-      const portfolio = await this.portfoliosService.findOne(
-        portfolioId,
-        userId,
-      );
-
-      // Quantidade atual da transação (para remover do cálculo)
-      const currentTransactionQuantity = isAlreadySale
-        ? transaction.quantity
-        : 0;
 
       // Nova quantidade da transação
       const newTransactionQuantity =
         updateTransactionDto.quantity || transaction.quantity;
 
-      // Saldo disponível = saldo atual + quantidade atual da transação
-      const availableBalance =
-        portfolio.currentBalance + currentTransactionQuantity;
+      // Para validação de vendas, sempre usar recálculo seguro
+      // Primeiro, temporariamente "devolver" a quantidade atual se for venda existente
+      if (isAlreadySale) {
+        // Recalcular considerando que vamos remover a transação atual
+        const transactions = await this.findAllByPortfolioId(portfolioId);
+        const transactionsWithoutCurrent = transactions.filter(
+          (t) => t.id !== transaction.id,
+        );
+        const balanceWithoutCurrent =
+          this.portfoliosService.calculateTotalQuantity(
+            transactionsWithoutCurrent,
+          );
 
-      if (availableBalance < newTransactionQuantity) {
-        throw new BadRequestException(
-          `Insufficient balance for sale. ` +
-            `Available: ${availableBalance}, ` +
-            `Attempted: ${newTransactionQuantity}`,
+        if (balanceWithoutCurrent < newTransactionQuantity) {
+          throw new BadRequestException(
+            `Insufficient balance for sale. ` +
+              `Available: ${balanceWithoutCurrent}, ` +
+              `Attempted: ${newTransactionQuantity}`,
+          );
+        }
+      } else {
+        // Para mudança para venda ou nova venda, usar validação segura
+        await this.portfoliosService.validateSaleTransaction(
+          portfolioId,
+          newTransactionQuantity,
+          userId,
         );
       }
     }

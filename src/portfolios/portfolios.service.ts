@@ -257,4 +257,74 @@ export class PortfoliosService {
 
     return totalQuantity > 0 ? weightedSum / totalQuantity : 0;
   }
+
+  /**
+   * Verifica se há saldo suficiente usando o campo currentBalance (cache)
+   * ⚠️  ATENÇÃO: Use apenas para consultas rápidas, NÃO para validações de venda!
+   * Para vendas, sempre use validateSaleTransaction()
+   */
+  async hasSufficientBalance(
+    portfolioId: number,
+    requiredAmount: number,
+  ): Promise<boolean> {
+    const portfolio = await this.repository.findOne({
+      where: { id: portfolioId },
+    });
+
+    if (!portfolio) {
+      throw new NotFoundException(`Portfolio with ID ${portfolioId} not found`);
+    }
+
+    return portfolio.currentBalance >= requiredAmount;
+  }
+
+  /**
+   * Obtém o saldo atual usando cache (currentBalance)
+   * ⚠️  ATENÇÃO: Use apenas para dashboards/listagens, NÃO para validações críticas!
+   * Para operações financeiras, sempre use getCurrentBalanceAccurate()
+   */
+  async getCurrentBalanceFast(portfolioId: number): Promise<number> {
+    const portfolio = await this.repository.findOne({
+      where: { id: portfolioId },
+    });
+
+    if (!portfolio) {
+      throw new NotFoundException(`Portfolio with ID ${portfolioId} not found`);
+    }
+
+    return portfolio.currentBalance;
+  }
+
+  /**
+   * Obtém o saldo atual com recálculo preciso
+   * Para validações críticas onde precisão é essencial
+   */
+  async getCurrentBalanceAccurate(portfolioId: number): Promise<number> {
+    const portfolio = await this.recalculatePortfolioBalance(portfolioId);
+    return portfolio.currentBalance;
+  }
+
+  /**
+   * Validação segura para vendas: sempre recalcula para máxima precisão
+   * Prioriza segurança sobre performance em operações críticas
+   */
+  async validateSaleTransaction(
+    portfolioId: number,
+    saleAmount: number,
+    userId?: number,
+  ): Promise<void> {
+    // Verificar se o portfolio existe e pertence ao usuário (se userId fornecido)
+    if (userId) {
+      await this.findOne(portfolioId, userId);
+    }
+
+    // Para vendas, SEMPRE recalcular - precisão é crítica
+    const portfolio = await this.recalculatePortfolioBalance(portfolioId);
+
+    if (portfolio.currentBalance < saleAmount) {
+      throw new BadRequestException(
+        `Insufficient balance for sale. Available: ${portfolio.currentBalance}, Required: ${saleAmount}`,
+      );
+    }
+  }
 }
