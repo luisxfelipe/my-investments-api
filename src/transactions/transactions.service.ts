@@ -29,7 +29,7 @@ export class TransactionsService {
     userId: number,
   ): Promise<Transaction> {
     // Verifica se o portfólio existe e pertence ao usuário
-    await this.portfoliosService.findOne(
+    const portfolio = await this.portfoliosService.findOne(
       createTransactionDto.portfolioId,
       userId,
     );
@@ -40,8 +40,24 @@ export class TransactionsService {
       userId,
     );
 
+    // ✅ NOVA VALIDAÇÃO: Verificar saldo para vendas (ID 2 = VENDA)
+    if (createTransactionDto.transactionTypeId === 2) {
+      if (portfolio.currentBalance < createTransactionDto.quantity) {
+        throw new BadRequestException(
+          `Insufficient balance for sale. ` +
+            `Available: ${portfolio.currentBalance}, ` +
+            `Attempted: ${createTransactionDto.quantity}`,
+        );
+      }
+    }
+
     const transaction = this.repository.create(createTransactionDto);
-    return this.repository.save(transaction);
+    const savedTransaction = await this.repository.save(transaction);
+
+    // ✅ Recalcular saldo do portfolio após a transação
+    await this.portfoliosService.recalculatePortfolioBalance(portfolio.id);
+
+    return savedTransaction;
   }
 
   async findAll(userId: number): Promise<Transaction[]> {
@@ -166,8 +182,50 @@ export class TransactionsService {
       );
     }
 
+    // ✅ NOVA VALIDAÇÃO: Verificar saldo para vendas (ID 2 = VENDA)
+    const isChangingToSale = updateTransactionDto.transactionTypeId === 2;
+    const isAlreadySale = transaction.transactionTypeId === 2;
+    const isChangingQuantity = updateTransactionDto.quantity !== undefined;
+
+    if (isChangingToSale || (isAlreadySale && isChangingQuantity)) {
+      const portfolioId =
+        updateTransactionDto.portfolioId || transaction.portfolioId;
+      const portfolio = await this.portfoliosService.findOne(
+        portfolioId,
+        userId,
+      );
+
+      // Quantidade atual da transação (para remover do cálculo)
+      const currentTransactionQuantity = isAlreadySale
+        ? transaction.quantity
+        : 0;
+
+      // Nova quantidade da transação
+      const newTransactionQuantity =
+        updateTransactionDto.quantity || transaction.quantity;
+
+      // Saldo disponível = saldo atual + quantidade atual da transação
+      const availableBalance =
+        portfolio.currentBalance + currentTransactionQuantity;
+
+      if (availableBalance < newTransactionQuantity) {
+        throw new BadRequestException(
+          `Insufficient balance for sale. ` +
+            `Available: ${availableBalance}, ` +
+            `Attempted: ${newTransactionQuantity}`,
+        );
+      }
+    }
+
     this.repository.merge(transaction, updateTransactionDto);
-    return this.repository.save(transaction);
+    const updatedTransaction = await this.repository.save(transaction);
+
+    // ✅ Recalcular saldo do portfolio após a atualização
+    await this.portfoliosService.recalculatePortfolioBalance(
+      transaction.portfolioId,
+    );
+
+    return updatedTransaction;
   }
 
   async findAllByPortfolioId(
