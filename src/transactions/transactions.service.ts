@@ -175,4 +175,13 @@ export class TransactionsService {
     // Usa softDelete em vez de remove para fazer soft delete
     await this.repository.softDelete(id);
   }
+
+  /**
+   * Conta quantas transações estão usando um tipo de transação específico
+   */
+  async countByTransactionTypeId(transactionTypeId: number): Promise<number> {
+    return this.repository.count({
+      where: { transactionTypeId },
+    });
+  }
 }

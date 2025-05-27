@@ -11,6 +11,7 @@ import { TransactionTypesService } from './transaction-types.service';
 import { CreateTransactionTypeDto } from './dto/create-transaction-type.dto';
 import { UpdateTransactionTypeDto } from './dto/update-transaction-type.dto';
 import { ApiOperation, ApiParam, ApiResponse } from '@nestjs/swagger';
+import { UserDecorator } from 'src/decorators/user.decorator';
 import { TransactionTypeResponseDto } from './dto/transaction-type-response.dto';
 
 @Controller('transaction-types')
@@ -32,9 +33,13 @@ export class TransactionTypesController {
   })
   async create(
     @Body() createTransactionTypeDto: CreateTransactionTypeDto,
+    @UserDecorator() userId: number,
   ): Promise<TransactionTypeResponseDto> {
     return new TransactionTypeResponseDto(
-      await this.transactionTypesService.create(createTransactionTypeDto),
+      await this.transactionTypesService.create(
+        createTransactionTypeDto,
+        userId,
+      ),
     );
   }
 
@@ -45,8 +50,10 @@ export class TransactionTypesController {
     description: 'List of all transaction types',
     type: [TransactionTypeResponseDto],
   })
-  async findAll(): Promise<TransactionTypeResponseDto[]> {
-    const transactionTypes = await this.transactionTypesService.findAll();
+  async findAll(
+    @UserDecorator() userId: number,
+  ): Promise<TransactionTypeResponseDto[]> {
+    const transactionTypes = await this.transactionTypesService.findAll(userId);
     return transactionTypes.map(
       (transactionType) => new TransactionTypeResponseDto(transactionType),
     );
@@ -61,9 +68,12 @@ export class TransactionTypesController {
     type: TransactionTypeResponseDto,
   })
   @ApiResponse({ status: 404, description: 'Transaction Type not found' })
-  async findOne(@Param('id') id: string): Promise<TransactionTypeResponseDto> {
+  async findOne(
+    @Param('id') id: string,
+    @UserDecorator() userId: number,
+  ): Promise<TransactionTypeResponseDto> {
     return new TransactionTypeResponseDto(
-      await this.transactionTypesService.findOne(+id),
+      await this.transactionTypesService.findOne(+id, userId),
     );
   }
 
@@ -84,9 +94,14 @@ export class TransactionTypesController {
   async update(
     @Param('id') id: string,
     @Body() updateTransactionTypeDto: UpdateTransactionTypeDto,
+    @UserDecorator() userId: number,
   ): Promise<TransactionTypeResponseDto> {
     return new TransactionTypeResponseDto(
-      await this.transactionTypesService.update(+id, updateTransactionTypeDto),
+      await this.transactionTypesService.update(
+        +id,
+        updateTransactionTypeDto,
+        userId,
+      ),
     );
   }
 
@@ -98,7 +113,10 @@ export class TransactionTypesController {
     description: 'Transaction Type has been marked as successfully removed',
   })
   @ApiResponse({ status: 404, description: 'Transaction Type not found' })
-  async remove(@Param('id') id: string): Promise<void> {
-    await this.transactionTypesService.remove(+id);
+  async remove(
+    @Param('id') id: string,
+    @UserDecorator() userId: number,
+  ): Promise<void> {
+    await this.transactionTypesService.remove(+id, userId);
   }
 }

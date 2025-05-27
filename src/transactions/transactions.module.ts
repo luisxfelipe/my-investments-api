@@ -10,7 +10,7 @@ import { Transaction } from './entities/transaction.entity';
   imports: [
     TypeOrmModule.forFeature([Transaction]),
     forwardRef(() => PortfoliosModule),
-    TransactionTypesModule,
+    forwardRef(() => TransactionTypesModule),
   ],
   controllers: [TransactionsController],
   providers: [TransactionsService],
