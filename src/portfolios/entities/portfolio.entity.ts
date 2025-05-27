@@ -11,10 +11,12 @@ import {
   JoinColumn,
   ManyToOne,
   PrimaryGeneratedColumn,
+  Unique,
   UpdateDateColumn,
 } from 'typeorm';
 
 @Entity({ name: 'portfolio' })
+@Unique('UQ_user_asset_platform', ['userId', 'assetId', 'platformId'])
 export class Portfolio {
   @ApiProperty({ description: 'Portfolio ID' })
   @PrimaryGeneratedColumn()
