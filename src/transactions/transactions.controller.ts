@@ -21,6 +21,7 @@ import {
 import { TransactionResponseDto } from './dto/transaction-response.dto';
 import { PaginatedResponseDto } from 'src/dtos/paginated-response.dto';
 import { PaginatedTransactionResponseDto } from './dto/paginated-transaction-response.dto';
+import { UserDecorator } from 'src/decorators/user.decorator';
 
 @ApiTags('transactions')
 @Controller('transactions')
@@ -41,9 +42,10 @@ export class TransactionsController {
   })
   async create(
     @Body() createTransactionDto: CreateTransactionDto,
+    @UserDecorator() userId: number,
   ): Promise<TransactionResponseDto> {
     return new TransactionResponseDto(
-      await this.transactionsService.create(createTransactionDto),
+      await this.transactionsService.create(createTransactionDto, userId),
     );
   }
 
@@ -54,8 +56,10 @@ export class TransactionsController {
     description: 'List of all transactions',
     type: [TransactionResponseDto],
   })
-  async findAll(): Promise<TransactionResponseDto[]> {
-    const transactions = await this.transactionsService.findAll();
+  async findAll(
+    @UserDecorator() userId: number,
+  ): Promise<TransactionResponseDto[]> {
+    const transactions = await this.transactionsService.findAll(userId);
     return transactions.map(
       (transaction) => new TransactionResponseDto(transaction),
     );
@@ -81,6 +85,7 @@ export class TransactionsController {
     type: PaginatedTransactionResponseDto,
   })
   async findAllWithPagination(
+    @UserDecorator() userId: number,
     @Query('take') take?: string,
     @Query('page') page?: string,
   ): Promise<PaginatedResponseDto<TransactionResponseDto>> {
@@ -90,6 +95,7 @@ export class TransactionsController {
     const transactions = await this.transactionsService.findAllWithPagination(
       takeNumber,
       pageNumber,
+      userId,
     );
 
     // Transformar as transações em DTOs de resposta
@@ -115,9 +121,12 @@ export class TransactionsController {
     type: TransactionResponseDto,
   })
   @ApiResponse({ status: 404, description: 'Transaction not found' })
-  async findOne(@Param('id') id: string): Promise<TransactionResponseDto> {
+  async findOne(
+    @Param('id') id: string,
+    @UserDecorator() userId: number,
+  ): Promise<TransactionResponseDto> {
     return new TransactionResponseDto(
-      await this.transactionsService.findOne(+id),
+      await this.transactionsService.findOne(+id, userId),
     );
   }
 
@@ -137,9 +146,10 @@ export class TransactionsController {
   async update(
     @Param('id') id: string,
     @Body() updateTransactionDto: UpdateTransactionDto,
+    @UserDecorator() userId: number,
   ): Promise<TransactionResponseDto> {
     return new TransactionResponseDto(
-      await this.transactionsService.update(+id, updateTransactionDto),
+      await this.transactionsService.update(+id, updateTransactionDto, userId),
     );
   }
 
@@ -151,7 +161,10 @@ export class TransactionsController {
     description: 'Transaction has been marked as successfully removed',
   })
   @ApiResponse({ status: 404, description: 'Transaction not found' })
-  async remove(@Param('id') id: string): Promise<void> {
-    await this.transactionsService.remove(+id);
+  async remove(
+    @Param('id') id: string,
+    @UserDecorator() userId: number,
+  ): Promise<void> {
+    await this.transactionsService.remove(+id, userId);
   }
 }

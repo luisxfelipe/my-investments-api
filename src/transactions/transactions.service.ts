@@ -26,23 +26,31 @@ export class TransactionsService {
 
   async create(
     createTransactionDto: CreateTransactionDto,
+    userId: number,
   ): Promise<Transaction> {
-    // Verifica se o portfólio existe
-    await this.portfoliosService.findOne(createTransactionDto.portfolioId);
+    // Verifica se o portfólio existe e pertence ao usuário
+    await this.portfoliosService.findOne(
+      createTransactionDto.portfolioId,
+      userId,
+    );
 
-    // Verifica se o tipo de transação existe
+    // Verifica se o tipo de transação existe e pertence ao usuário
     await this.transactionTypesService.findOne(
       createTransactionDto.transactionTypeId,
+      userId,
     );
 
     const transaction = this.repository.create(createTransactionDto);
     return this.repository.save(transaction);
   }
 
-  async findAll(): Promise<Transaction[]> {
-    return this.repository.find({
-      relations: ['portfolio', 'transactionType'],
-    });
+  async findAll(userId: number): Promise<Transaction[]> {
+    return this.repository
+      .createQueryBuilder('transaction')
+      .leftJoinAndSelect('transaction.portfolio', 'portfolio')
+      .leftJoinAndSelect('transaction.transactionType', 'transactionType')
+      .where('portfolio.userId = :userId', { userId })
+      .getMany();
   }
 
   async findAllByPlatformId(
@@ -85,40 +93,43 @@ export class TransactionsService {
   async findAllWithPagination(
     take = 10,
     page = 1,
+    userId: number,
   ): Promise<PaginatedResponseDto<Transaction>> {
     const skip = (page - 1) * take;
 
-    const [transactions, total] = await this.repository.findAndCount({
-      relations: [
-        'portfolio',
-        'portfolio.asset',
-        'portfolio.asset.category',
-        'portfolio.asset.assetType',
-        'portfolio.platform',
-        'transactionType',
-      ],
-      take,
-      skip,
-    });
+    const [transactions, total] = await this.repository
+      .createQueryBuilder('transaction')
+      .leftJoinAndSelect('transaction.portfolio', 'portfolio')
+      .leftJoinAndSelect('transaction.transactionType', 'transactionType')
+      .leftJoinAndSelect('portfolio.asset', 'asset')
+      .leftJoinAndSelect('asset.category', 'category')
+      .leftJoinAndSelect('asset.assetType', 'assetType')
+      .leftJoinAndSelect('portfolio.platform', 'platform')
+      .where('portfolio.userId = :userId', { userId })
+      .take(take)
+      .skip(skip)
+      .getManyAndCount();
 
     return new PaginatedResponseDto(transactions, total, take, page);
   }
 
-  async findOne(id: number): Promise<Transaction> {
-    const transaction = await this.repository.findOne({
-      where: { id },
-      relations: [
-        'portfolio',
-        'portfolio.asset',
-        'portfolio.asset.category',
-        'portfolio.asset.assetType',
-        'portfolio.platform',
-        'transactionType',
-      ],
-    });
+  async findOne(id: number, userId: number): Promise<Transaction> {
+    const transaction = await this.repository
+      .createQueryBuilder('transaction')
+      .leftJoinAndSelect('transaction.portfolio', 'portfolio')
+      .leftJoinAndSelect('transaction.transactionType', 'transactionType')
+      .leftJoinAndSelect('portfolio.asset', 'asset')
+      .leftJoinAndSelect('asset.category', 'category')
+      .leftJoinAndSelect('asset.assetType', 'assetType')
+      .leftJoinAndSelect('portfolio.platform', 'platform')
+      .where('transaction.id = :id', { id })
+      .andWhere('portfolio.userId = :userId', { userId })
+      .getOne();
 
     if (!transaction) {
-      throw new NotFoundException(`Transaction with ID ${id} not found`);
+      throw new NotFoundException(
+        `Transaction with ID ${id} not found or you don't have access to it`,
+      );
     }
 
     return transaction;
@@ -127,6 +138,7 @@ export class TransactionsService {
   async update(
     id: number,
     updateTransactionDto: UpdateTransactionDto,
+    userId: number,
   ): Promise<Transaction> {
     if (
       !updateTransactionDto ||
@@ -135,18 +147,22 @@ export class TransactionsService {
       throw new BadRequestException(`No properties provided for update`);
     }
 
-    // Verifica se a transação existe
-    const transaction = await this.findOne(id);
+    // Verifica se a transação existe e pertence ao usuário
+    const transaction = await this.findOne(id, userId);
 
-    // Verifica se o portfólio existe, se foi fornecido
+    // Verifica se o portfólio existe e pertence ao usuário, se foi fornecido
     if (updateTransactionDto.portfolioId) {
-      await this.portfoliosService.findOne(updateTransactionDto.portfolioId);
+      await this.portfoliosService.findOne(
+        updateTransactionDto.portfolioId,
+        userId,
+      );
     }
 
-    // Verifica se o tipo de transação existe, se foi fornecido
+    // Verifica se o tipo de transação existe e pertence ao usuário, se foi fornecido
     if (updateTransactionDto.transactionTypeId) {
       await this.transactionTypesService.findOne(
         updateTransactionDto.transactionTypeId,
+        userId,
       );
     }
 
@@ -154,23 +170,30 @@ export class TransactionsService {
     return this.repository.save(transaction);
   }
 
-  async findAllByPortfolioId(portfolioId: number): Promise<Transaction[]> {
-    return this.repository.find({
-      where: { portfolioId },
-      relations: [
-        'portfolio',
-        'portfolio.asset',
-        'portfolio.asset.category',
-        'portfolio.asset.assetType',
-        'portfolio.platform',
-        'transactionType',
-      ],
-    });
+  async findAllByPortfolioId(
+    portfolioId: number,
+    userId?: number,
+  ): Promise<Transaction[]> {
+    const queryBuilder = this.repository
+      .createQueryBuilder('transaction')
+      .leftJoinAndSelect('transaction.portfolio', 'portfolio')
+      .leftJoinAndSelect('transaction.transactionType', 'transactionType')
+      .leftJoinAndSelect('portfolio.asset', 'asset')
+      .leftJoinAndSelect('portfolio.asset.category', 'category')
+      .leftJoinAndSelect('portfolio.asset.assetType', 'assetType')
+      .leftJoinAndSelect('portfolio.platform', 'platform')
+      .where('transaction.portfolioId = :portfolioId', { portfolioId });
+
+    if (userId) {
+      queryBuilder.andWhere('portfolio.userId = :userId', { userId });
+    }
+
+    return queryBuilder.getMany();
   }
 
-  async remove(id: number): Promise<void> {
-    // Verifica se a transação existe
-    await this.findOne(id);
+  async remove(id: number, userId: number): Promise<void> {
+    // Verifica se a transação existe e pertence ao usuário
+    await this.findOne(id, userId);
 
     // Usa softDelete em vez de remove para fazer soft delete
     await this.repository.softDelete(id);
