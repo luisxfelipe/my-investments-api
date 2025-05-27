@@ -1,11 +1,12 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { Type } from 'class-transformer';
+import { Type, Transform } from 'class-transformer';
 import {
   IsDate,
   IsNotEmpty,
   IsInt,
   IsPositive,
-  IsString,
+  IsNumber,
+  IsOptional,
 } from 'class-validator';
 
 export class CreateAssetQuoteDto {
@@ -17,10 +18,19 @@ export class CreateAssetQuoteDto {
 
   @ApiProperty({ description: 'Asset price' })
   @IsNotEmpty({ message: 'Asset price is required' })
-  @IsString({ message: 'Asset price must be a string' })
-  price: string;
+  @IsNumber({}, { message: 'Asset price must be a number' })
+  @IsPositive({ message: 'Asset price must be positive' })
+  @Transform(({ value }: { value: string | number }) => {
+    const num = typeof value === 'string' ? parseFloat(value) : value;
+    if (isNaN(num) || num <= 0) {
+      throw new Error('Price must be a positive number');
+    }
+    return num;
+  })
+  price: number;
 
   @ApiProperty({ description: 'Quote timestamp', required: false, type: Date })
+  @IsOptional()
   @Type(() => Date)
   @IsDate({ message: 'Quote timestamp must be a valid date' })
   timestamp?: Date;

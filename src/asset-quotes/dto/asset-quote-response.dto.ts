@@ -10,7 +10,7 @@ export class AssetQuoteResponseDto {
   assetId: number;
 
   @ApiProperty({ description: 'Asset price' })
-  price: string;
+  price: number;
 
   @ApiProperty({ description: 'Quote timestamp' })
   timestamp: Date;

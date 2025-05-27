@@ -21,6 +21,7 @@ import { AssetQuoteResponseDto } from './dto/asset-quote-response.dto';
 import { PaginatedAssetQuoteResponseDto } from './dto/paginated-asset-quote-response.dto';
 import { UpdateAssetQuoteDto } from './dto/update-asset-quote.dto';
 import { PaginatedResponseDto } from 'src/dtos/paginated-response.dto';
+import { UserDecorator } from 'src/decorators/user.decorator';
 
 @ApiTags('asset-quotes')
 @Controller('asset-quotes')
@@ -38,8 +39,12 @@ export class AssetQuotesController {
   @ApiResponse({ status: 404, description: 'Asset not found' })
   async create(
     @Body() createAssetQuoteDto: CreateAssetQuoteDto,
+    @UserDecorator() userId: number,
   ): Promise<AssetQuoteResponseDto> {
-    const quote = await this.assetQuotesService.create(createAssetQuoteDto);
+    const quote = await this.assetQuotesService.create(
+      createAssetQuoteDto,
+      userId,
+    );
     return new AssetQuoteResponseDto(quote);
   }
 
@@ -62,9 +67,11 @@ export class AssetQuotesController {
   })
   async findLatest(
     @Query('assetId') assetId: string,
+    @UserDecorator() userId: number,
   ): Promise<AssetQuoteResponseDto> {
     const quote = await this.assetQuotesService.findLatestByAssetId(
       Number(assetId),
+      userId,
     );
     return new AssetQuoteResponseDto(quote);
   }
@@ -76,8 +83,10 @@ export class AssetQuotesController {
     description: 'Latest quotes for all assets',
     type: [AssetQuoteResponseDto],
   })
-  async findLatestForAllAssets(): Promise<AssetQuoteResponseDto[]> {
-    const quotes = await this.assetQuotesService.findLatestForAllAssets();
+  async findLatestForAllAssets(
+    @UserDecorator() userId: number,
+  ): Promise<AssetQuoteResponseDto[]> {
+    const quotes = await this.assetQuotesService.findLatestForAllAssets(userId);
     return quotes.map((q) => new AssetQuoteResponseDto(q));
   }
 
@@ -103,6 +112,7 @@ export class AssetQuotesController {
   async findLatestForAllAssetsWithPagination(
     @Query('take') take?: string,
     @Query('page') page?: string,
+    @UserDecorator() userId?: number,
   ) {
     const takeNumber = take ? parseInt(take) : 10;
     const pageNumber = page ? parseInt(page) : 1;
@@ -110,6 +120,7 @@ export class AssetQuotesController {
       await this.assetQuotesService.findLatestForAllAssetsWithPagination(
         takeNumber,
         pageNumber,
+        userId,
       );
     const quoteDtos = quotes.data.map((q) => new AssetQuoteResponseDto(q));
     return new PaginatedResponseDto<AssetQuoteResponseDto>(
@@ -131,9 +142,11 @@ export class AssetQuotesController {
   @ApiResponse({ status: 404, description: 'No quotes found for the asset.' })
   async findAllByAssetId(
     @Param('assetId') assetId: string,
+    @UserDecorator() userId: number,
   ): Promise<AssetQuoteResponseDto[]> {
     const quotes = await this.assetQuotesService.findAllByAssetId(
       Number(assetId),
+      userId,
     );
     return quotes.map((q) => new AssetQuoteResponseDto(q));
   }
@@ -147,8 +160,11 @@ export class AssetQuotesController {
     type: AssetQuoteResponseDto,
   })
   @ApiResponse({ status: 404, description: 'Quote not found.' })
-  async findOne(@Param('id') id: string): Promise<AssetQuoteResponseDto> {
-    const quote = await this.assetQuotesService.findOne(Number(id));
+  async findOne(
+    @Param('id') id: string,
+    @UserDecorator() userId: number,
+  ): Promise<AssetQuoteResponseDto> {
+    const quote = await this.assetQuotesService.findOne(Number(id), userId);
     return new AssetQuoteResponseDto(quote);
   }
 
@@ -165,10 +181,12 @@ export class AssetQuotesController {
   async update(
     @Param('id') id: string,
     @Body() updateData: UpdateAssetQuoteDto,
+    @UserDecorator() userId: number,
   ): Promise<AssetQuoteResponseDto> {
     const updated = await this.assetQuotesService.update(
       Number(id),
       updateData,
+      userId,
     );
     return new AssetQuoteResponseDto(updated);
   }
@@ -181,7 +199,10 @@ export class AssetQuotesController {
     description: 'Quote has been marked as successfully removed',
   })
   @ApiResponse({ status: 404, description: 'Quote not found.' })
-  async remove(@Param('id') id: string): Promise<void> {
-    await this.assetQuotesService.delete(Number(id));
+  async remove(
+    @Param('id') id: string,
+    @UserDecorator() userId: number,
+  ): Promise<void> {
+    await this.assetQuotesService.delete(Number(id), userId);
   }
 }

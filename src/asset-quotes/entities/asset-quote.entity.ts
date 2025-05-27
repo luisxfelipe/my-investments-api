@@ -27,7 +27,7 @@ export class AssetQuote {
 
   @ApiProperty({ description: 'Asset price' })
   @Column({ name: 'price', type: 'decimal', precision: 18, scale: 6 })
-  price: string;
+  price: number;
 
   @ApiProperty({ description: 'Quote timestamp' })
   @Column({ name: 'timestamp', type: 'timestamp' })
