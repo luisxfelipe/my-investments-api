@@ -2,13 +2,17 @@ import {
   BadRequestException,
   Injectable,
   NotFoundException,
+  Inject,
+  forwardRef,
 } from '@nestjs/common';
 import { CreateAssetDto } from './dto/create-asset.dto';
 import { UpdateAssetDto } from './dto/update-asset.dto';
 import { Asset } from './entities/asset.entity';
 import { CategoriesService } from 'src/categories/categories.service';
 import { AssetTypesService } from 'src/asset-types/asset-types.service';
-import { Repository } from 'typeorm';
+import { PortfoliosService } from 'src/portfolios/portfolios.service';
+import { AssetQuotesService } from 'src/asset-quotes/asset-quotes.service';
+import { Repository, Not } from 'typeorm';
 import { InjectRepository } from '@nestjs/typeorm';
 import { In } from 'typeorm';
 
@@ -19,28 +23,60 @@ export class AssetsService {
     private readonly repository: Repository<Asset>,
     private readonly categoriesService: CategoriesService,
     private readonly assetTypesService: AssetTypesService,
+    @Inject(forwardRef(() => PortfoliosService))
+    private readonly portfoliosService: PortfoliosService,
+    @Inject(forwardRef(() => AssetQuotesService))
+    private readonly assetQuotesService: AssetQuotesService,
   ) {}
 
-  async create(createAssetDto: CreateAssetDto): Promise<Asset> {
+  async create(userId: number, createAssetDto: CreateAssetDto): Promise<Asset> {
     // Verifica se a categoria existe
     await this.categoriesService.findOne(createAssetDto.categoryId);
 
     // Verifica se o tipo de ativo existe
     await this.assetTypesService.findOne(createAssetDto.assetTypeId);
 
-    const asset = this.repository.create(createAssetDto);
+    // Verifica se já existe um ativo com o mesmo nome para este usuário
+    if (createAssetDto.name) {
+      const existingByName = await this.repository.findOne({
+        where: { userId, name: createAssetDto.name },
+      });
+      if (existingByName) {
+        throw new BadRequestException(
+          `Asset with name '${createAssetDto.name}' already exists for this user`,
+        );
+      }
+    }
+
+    // Verifica se já existe um ativo com o mesmo código para este usuário
+    if (createAssetDto.code) {
+      const existingByCode = await this.repository.findOne({
+        where: { userId, code: createAssetDto.code },
+      });
+      if (existingByCode) {
+        throw new BadRequestException(
+          `Asset with code '${createAssetDto.code}' already exists for this user`,
+        );
+      }
+    }
+
+    const asset = this.repository.create({
+      ...createAssetDto,
+      userId,
+    });
     return this.repository.save(asset);
   }
 
-  async findAll(): Promise<Asset[]> {
+  async findAll(userId: number): Promise<Asset[]> {
     return this.repository.find({
+      where: { userId },
       relations: ['category', 'assetType'],
     });
   }
 
-  async findOne(id: number): Promise<Asset> {
+  async findOne(id: number, userId: number): Promise<Asset> {
     const asset = await this.repository.findOne({
-      where: { id },
+      where: { id, userId },
       relations: ['category', 'assetType'],
     });
 
@@ -51,41 +87,80 @@ export class AssetsService {
     return asset;
   }
 
-  async findByIds(ids: number[]): Promise<Asset[]> {
+  async findByIds(ids: number[], userId: number): Promise<Asset[]> {
     if (!ids || ids.length === 0) {
       return [];
     }
     return this.repository.find({
-      where: { id: In(ids) },
+      where: { id: In(ids), userId },
       relations: ['category', 'assetType'],
     });
   }
 
-  async update(id: number, updateAssetDto: UpdateAssetDto): Promise<Asset> {
+  async update(
+    id: number,
+    userId: number,
+    updateAssetDto: UpdateAssetDto,
+  ): Promise<Asset> {
     if (!updateAssetDto || Object.keys(updateAssetDto).length === 0) {
       throw new BadRequestException(`No properties provided for update`);
     }
 
-    // Verifica se o ativo existe
-    const asset = await this.findOne(id);
+    // Verifica se o ativo existe e pertence ao usuário
+    const asset = await this.findOne(id, userId);
 
-    // Verifica se a categoria existe, se foi fornecida
-    if (updateAssetDto.categoryId) {
-      await this.categoriesService.findOne(updateAssetDto.categoryId);
+    // Verifica duplicação de nome
+    if (updateAssetDto.name && updateAssetDto.name !== asset.name) {
+      const existingByName = await this.repository.findOne({
+        where: { userId, name: updateAssetDto.name, id: Not(id) },
+      });
+      if (existingByName) {
+        throw new BadRequestException(
+          `Asset with name '${updateAssetDto.name}' already exists for this user`,
+        );
+      }
     }
 
-    // Verifica se o tipo de ativo existe, se foi fornecido
-    if (updateAssetDto.assetTypeId) {
-      await this.assetTypesService.findOne(updateAssetDto.assetTypeId);
+    // Verifica duplicação de código
+    if (updateAssetDto.code && updateAssetDto.code !== asset.code) {
+      const existingByCode = await this.repository.findOne({
+        where: { userId, code: updateAssetDto.code, id: Not(id) },
+      });
+      if (existingByCode) {
+        throw new BadRequestException(
+          `Asset with code '${updateAssetDto.code}' already exists for this user`,
+        );
+      }
     }
 
     this.repository.merge(asset, updateAssetDto);
     return this.repository.save(asset);
   }
 
-  async remove(id: number): Promise<void> {
-    // Verifica se o ativo existe
-    await this.findOne(id);
+  async remove(id: number, userId: number): Promise<void> {
+    // Verifica se o ativo existe e pertence ao usuário
+    await this.findOne(id, userId);
+
+    // Verifica se o ativo está sendo usado em portfolios
+    const portfoliosUsingAsset = await this.portfoliosService.countByAssetId(
+      id,
+      userId,
+    );
+
+    if (portfoliosUsingAsset > 0) {
+      throw new BadRequestException(
+        `Cannot delete asset. It is being used in ${portfoliosUsingAsset} portfolio(s). Please remove the asset from all portfolios first.`,
+      );
+    }
+
+    // Verifica se o ativo possui cotações
+    const quotesCount = await this.assetQuotesService.countByAssetId(id);
+
+    if (quotesCount > 0) {
+      throw new BadRequestException(
+        `Cannot delete asset. It has ${quotesCount} price quote(s). Please remove all quotes first.`,
+      );
+    }
 
     // Usa softDelete em vez de remove para fazer soft delete
     await this.repository.softDelete(id);

@@ -233,7 +233,7 @@ export class PlatformsService {
 
     // Buscar informações dos ativos únicos
     const assetIds = Array.from(assetTransactions.keys());
-    const assets = await this.assetsService.findByIds(assetIds);
+    const assets = await this.assetsService.findByIds(assetIds, userId);
     const assetMap = new Map(assets.map((asset) => [asset.id, asset]));
 
     // Buscar cotações atuais dos ativos

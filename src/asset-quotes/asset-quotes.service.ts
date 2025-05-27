@@ -27,7 +27,10 @@ export class AssetQuotesService {
   }
 
   async findOne(id: number): Promise<AssetQuote> {
-    const quote = await this.repository.findOne({ where: { id } });
+    const quote = await this.repository.findOne({
+      where: { id },
+      relations: ['asset'],
+    });
     if (!quote) {
       throw new NotFoundException(`Quote with ID ${id} not found`);
     }
@@ -38,6 +41,7 @@ export class AssetQuotesService {
     const quote = await this.repository.findOne({
       where: { assetId },
       order: { timestamp: 'DESC' },
+      relations: ['asset'],
     });
     if (!quote) {
       throw new NotFoundException('Quote not found for the asset provided.');
@@ -106,6 +110,7 @@ export class AssetQuotesService {
     return this.repository.find({
       where: { assetId },
       order: { timestamp: 'DESC' },
+      relations: ['asset'],
     });
   }
 
@@ -153,5 +158,14 @@ export class AssetQuotesService {
     await this.findOne(id);
     // Usa softDelete em vez de delete para fazer soft delete
     await this.repository.softDelete(id);
+  }
+
+  /**
+   * Conta quantas cotações existem para um ativo específico
+   */
+  async countByAssetId(assetId: number): Promise<number> {
+    return this.repository.count({
+      where: { assetId },
+    });
   }
 }

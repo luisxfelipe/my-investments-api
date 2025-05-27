@@ -5,12 +5,15 @@ import { UpdateUserDto } from './dto/update-user.dto';
 import { ApiOperation, ApiParam, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { User } from './entities/user.entity';
 import { UserResponseDto } from './dto/user-response.dto';
+import { Public } from 'src/decorators/is-public.decorator';
 
 @ApiTags('users')
 @Controller('users')
 export class UsersController {
   constructor(private readonly usersService: UsersService) {}
 
+  // deixar o endpoint de criação de usuário aberto para testes
+  @Public()
   @Post()
   @ApiOperation({ summary: 'Create a new user' })
   @ApiResponse({

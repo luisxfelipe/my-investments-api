@@ -39,7 +39,7 @@ export class PortfoliosService {
     await this.usersService.findOne(userId);
 
     // Verifica se o ativo existe
-    await this.assetsService.findOne(createPortfolioDto.assetId);
+    await this.assetsService.findOne(createPortfolioDto.assetId, userId);
 
     // Verifica se a plataforma existe
     await this.platformsService.findOne(createPortfolioDto.platformId);
@@ -79,7 +79,14 @@ export class PortfoliosService {
   async findAll(userId: number): Promise<Portfolio[]> {
     return this.repository.find({
       where: { userId },
-      relations: ['user', 'asset', 'platform', 'savingsGoal'],
+      relations: [
+        'user',
+        'asset',
+        'asset.category',
+        'asset.assetType',
+        'platform',
+        'savingsGoal',
+      ],
     });
   }
 
@@ -91,7 +98,14 @@ export class PortfoliosService {
 
     const portfolio = await this.repository.findOne({
       where: whereClause,
-      relations: ['user', 'asset', 'platform', 'savingsGoal'],
+      relations: [
+        'user',
+        'asset',
+        'asset.category',
+        'asset.assetType',
+        'platform',
+        'savingsGoal',
+      ],
     });
 
     if (!portfolio) {
@@ -131,6 +145,15 @@ export class PortfoliosService {
 
     // Usa softDelete em vez de remove para fazer soft delete
     await this.repository.softDelete(id);
+  }
+
+  /**
+   * Conta quantos portfolios estão usando um ativo específico
+   */
+  async countByAssetId(assetId: number, userId: number): Promise<number> {
+    return this.repository.count({
+      where: { assetId, userId },
+    });
   }
 
   /**

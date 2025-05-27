@@ -1,6 +1,7 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { AssetType } from 'src/asset-types/entities/asset-type.entity';
 import { Category } from 'src/categories/entities/category.entity';
+import { User } from 'src/users/entities/user.entity';
 import {
   Column,
   CreateDateColumn,
@@ -9,14 +10,21 @@ import {
   JoinColumn,
   ManyToOne,
   PrimaryGeneratedColumn,
+  Unique,
   UpdateDateColumn,
 } from 'typeorm';
 
 @Entity({ name: 'asset' })
+@Unique('UQ_asset_user_code', ['userId', 'code'])
+@Unique('UQ_asset_user_name', ['userId', 'name'])
 export class Asset {
   @ApiProperty({ description: 'Asset ID' })
   @PrimaryGeneratedColumn()
   id: number;
+
+  @ApiProperty({ description: 'User ID' })
+  @Column({ name: 'user_id' })
+  userId: number;
 
   @ApiProperty({ description: 'Asset Name' })
   @Column({ name: 'name', nullable: false, length: 100 })
@@ -41,6 +49,10 @@ export class Asset {
   @ManyToOne(() => AssetType)
   @JoinColumn({ name: 'asset_type_id' })
   assetType: AssetType;
+
+  @ManyToOne(() => User)
+  @JoinColumn({ name: 'user_id' })
+  user: User;
 
   @CreateDateColumn({ name: 'created_at' })
   createdAt: Date;

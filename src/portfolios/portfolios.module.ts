@@ -13,7 +13,7 @@ import { TransactionsModule } from 'src/transactions/transactions.module';
   imports: [
     TypeOrmModule.forFeature([Portfolio]),
     UsersModule,
-    AssetsModule,
+    forwardRef(() => AssetsModule),
     forwardRef(() => PlatformsModule),
     SavingsGoalsModule,
     forwardRef(() => TransactionsModule),

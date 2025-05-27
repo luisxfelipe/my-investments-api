@@ -51,6 +51,9 @@ export class TransactionsService {
       .leftJoinAndSelect('transaction.portfolio', 'portfolio')
       .leftJoinAndSelect('transaction.transactionType', 'transactionType')
       .leftJoinAndSelect('portfolio.asset', 'asset')
+      .leftJoinAndSelect('asset.category', 'category')
+      .leftJoinAndSelect('asset.assetType', 'assetType')
+      .leftJoinAndSelect('portfolio.platform', 'platform')
       .where('portfolio.platformId = :platformId', { platformId })
       .andWhere('portfolio.userId = :userId', { userId })
       .getMany();
@@ -83,7 +86,14 @@ export class TransactionsService {
     const skip = (page - 1) * take;
 
     const [transactions, total] = await this.repository.findAndCount({
-      relations: ['portfolio', 'transactionType'],
+      relations: [
+        'portfolio',
+        'portfolio.asset',
+        'portfolio.asset.category',
+        'portfolio.asset.assetType',
+        'portfolio.platform',
+        'transactionType',
+      ],
       take,
       skip,
     });
@@ -94,7 +104,14 @@ export class TransactionsService {
   async findOne(id: number): Promise<Transaction> {
     const transaction = await this.repository.findOne({
       where: { id },
-      relations: ['portfolio', 'transactionType'],
+      relations: [
+        'portfolio',
+        'portfolio.asset',
+        'portfolio.asset.category',
+        'portfolio.asset.assetType',
+        'portfolio.platform',
+        'transactionType',
+      ],
     });
 
     if (!transaction) {
@@ -137,7 +154,14 @@ export class TransactionsService {
   async findAllByPortfolioId(portfolioId: number): Promise<Transaction[]> {
     return this.repository.find({
       where: { portfolioId },
-      relations: ['transactionType'],
+      relations: [
+        'portfolio',
+        'portfolio.asset',
+        'portfolio.asset.category',
+        'portfolio.asset.assetType',
+        'portfolio.platform',
+        'transactionType',
+      ],
     });
   }
 
