@@ -335,7 +335,7 @@ export class PlatformsService {
       const assetResponse = new PlatformAssetResponseDto({
         code: asset.code,
         type: typeResponse,
-        quantity: quantity,
+        currentBalance: quantity,
         averagePurchasePrice: averagePrice,
         latestMarketPrice: currentPrice,
         priceChangePercentage: Number(priceChangePercentage.toFixed(2)),

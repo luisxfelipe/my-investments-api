@@ -8,8 +8,8 @@ export class PlatformAssetResponseDto {
   @ApiProperty({ description: 'Asset Type', type: () => AssetTypeResponseDto })
   type: AssetTypeResponseDto;
 
-  @ApiProperty({ description: 'Quantity' })
-  quantity: number;
+  @ApiProperty({ description: 'Current Balance' })
+  currentBalance: number;
 
   @ApiProperty({ description: 'Average Purchase Price' })
   averagePurchasePrice: number;
@@ -29,7 +29,7 @@ export class PlatformAssetResponseDto {
   constructor(partial: {
     code: string;
     type: AssetTypeResponseDto;
-    quantity: number;
+    currentBalance: number;
     averagePurchasePrice: number;
     latestMarketPrice: number;
     priceChangePercentage: number;
@@ -37,7 +37,7 @@ export class PlatformAssetResponseDto {
   }) {
     this.code = partial.code;
     this.type = partial.type;
-    this.quantity = partial.quantity;
+    this.currentBalance = partial.currentBalance;
     this.averagePurchasePrice = partial.averagePurchasePrice;
     this.latestMarketPrice = partial.latestMarketPrice;
     this.priceChangePercentage = partial.priceChangePercentage;
