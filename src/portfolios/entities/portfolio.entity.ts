@@ -40,7 +40,7 @@ export class Portfolio {
   platformId: number;
 
   @ApiProperty({ description: 'Savings Goal ID', required: false })
-  @Column({ name: 'savings_goal_id', nullable: true })
+  @Column({ name: 'saving_goal_id', nullable: true })
   savingsGoalId: number;
 
   @ApiProperty({ description: 'Current Balance' })
@@ -76,7 +76,7 @@ export class Portfolio {
   platform: Platform;
 
   @ManyToOne(() => SavingGoal, { nullable: true })
-  @JoinColumn({ name: 'savings_goal_id' })
+  @JoinColumn({ name: 'saving_goal_id' })
   savingGoal: SavingGoal;
 
   @CreateDateColumn({ name: 'created_at' })

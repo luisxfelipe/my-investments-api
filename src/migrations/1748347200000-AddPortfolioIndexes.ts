@@ -38,8 +38,8 @@ export class AddPortfolioIndexes1748347200000 implements MigrationInterface {
     );
 
     await createIndexIfNotExists(
-      'IDX_portfolio_savings_goal_id',
-      `CREATE INDEX IDX_portfolio_savings_goal_id ON portfolio(savings_goal_id)`,
+      'IDX_portfolio_saving_goal_id',
+      `CREATE INDEX IDX_portfolio_saving_goal_id ON portfolio(saving_goal_id)`,
     );
 
     // Índices compostos para consultas complexas
@@ -95,8 +95,8 @@ export class AddPortfolioIndexes1748347200000 implements MigrationInterface {
     );
 
     await dropIndexIfExists(
-      'IDX_portfolio_savings_goal_id',
-      `DROP INDEX IDX_portfolio_savings_goal_id ON portfolio`,
+      'IDX_portfolio_saving_goal_id',
+      `DROP INDEX IDX_portfolio_saving_goal_id ON portfolio`,
     );
 
     await dropIndexIfExists(
