@@ -12,7 +12,7 @@ import { SavingsGoalsService } from 'src/savings-goals/savings-goals.service';
 import { PlatformsService } from 'src/platforms/platforms.service';
 import { AssetsService } from 'src/assets/assets.service';
 import { UsersService } from 'src/users/users.service';
-import { Repository } from 'typeorm';
+import { Repository, IsNull } from 'typeorm';
 import { InjectRepository } from '@nestjs/typeorm';
 import { TransactionsService } from 'src/transactions/transactions.service';
 import { Transaction } from 'src/transactions/entities/transaction.entity';
@@ -54,19 +54,37 @@ export class PortfoliosService {
       );
     }
 
-    // Verifica se já existe um portfolio para este usuário, ativo e plataforma
-    const existingPortfolio = await this.repository.findOne({
-      where: {
-        userId,
-        assetId: createPortfolioDto.assetId,
-        platformId: createPortfolioDto.platformId,
-      },
-    });
+    // VALIDAÇÃO MODELO "CAIXINHAS":
+    // Verifica se já existe portfolio com a mesma combinação exata
+    // (incluindo savingsGoalId - mesmo que seja null)
+    const existingPortfolio = createPortfolioDto.savingsGoalId
+      ? await this.repository.findOne({
+          where: {
+            userId,
+            assetId: createPortfolioDto.assetId,
+            platformId: createPortfolioDto.platformId,
+            savingsGoalId: createPortfolioDto.savingsGoalId,
+          },
+        })
+      : await this.repository.findOne({
+          where: {
+            userId,
+            assetId: createPortfolioDto.assetId,
+            platformId: createPortfolioDto.platformId,
+            savingsGoalId: IsNull(),
+          },
+        });
 
     if (existingPortfolio) {
-      throw new BadRequestException(
-        `Portfolio already exists for this user, asset and platform`,
-      );
+      if (createPortfolioDto.savingsGoalId) {
+        throw new BadRequestException(
+          `Portfolio already exists for this asset and platform with the same savings goal`,
+        );
+      } else {
+        throw new BadRequestException(
+          `Portfolio already exists for this asset and platform without savings goal`,
+        );
+      }
     }
 
     const portfolio = this.repository.create({
@@ -95,7 +113,17 @@ export class PortfoliosService {
     });
   }
 
-  async findOne(id: number, userId?: number): Promise<Portfolio> {
+  /**
+   * Busca um portfolio específico com estratégia inteligente para valores de saldo e preço médio
+   * @param id ID do portfolio a ser buscado
+   * @param userId ID opcional do usuário para verificar acesso
+   * @param forceAccurateCalculation força o recálculo preciso (para operações financeiras críticas)
+   */
+  async findOne(
+    id: number, 
+    userId?: number,
+    forceAccurateCalculation: boolean = false,
+  ): Promise<Portfolio> {
     const whereClause: { id: number; userId?: number } = { id };
     if (userId) {
       whereClause.userId = userId;
@@ -115,6 +143,20 @@ export class PortfoliosService {
 
     if (!portfolio) {
       throw new NotFoundException(`Portfolio with ID ${id} not found`);
+    }
+
+    // Para operações críticas, usar cálculo preciso
+    if (forceAccurateCalculation) {
+      // Recalcular saldo e preço médio com precisão
+      const accurateBalance = await this.getCurrentBalanceAccurate(id);
+      const accurateAveragePrice = await this.getAveragePriceAccurate(id);
+      
+      // Criar cópia para não modificar a entidade persistida
+      return {
+        ...portfolio,
+        currentBalance: accurateBalance,
+        averagePrice: accurateAveragePrice,
+      };
     }
 
     return portfolio;
@@ -326,5 +368,55 @@ export class PortfoliosService {
         `Insufficient balance for sale. Available: ${portfolio.currentBalance}, Required: ${saleAmount}`,
       );
     }
+  }
+
+  /**
+   * Obtém o preço médio usando cache (averagePrice)
+   * ⚠️  ATENÇÃO: Use apenas para dashboards/listagens, NÃO para operações críticas!
+   * Para relatórios financeiros e vendas, sempre use getAveragePriceAccurate()
+   */
+  async getAveragePriceFast(portfolioId: number): Promise<number> {
+    const portfolio = await this.repository.findOne({
+      where: { id: portfolioId },
+    });
+
+    if (!portfolio) {
+      throw new NotFoundException(`Portfolio with ID ${portfolioId} not found`);
+    }
+
+    return portfolio.averagePrice;
+  }
+
+  /**
+   * Obtém o preço médio com recálculo preciso
+   * Para relatórios financeiros e outras operações onde precisão é essencial
+   */
+  async getAveragePriceAccurate(portfolioId: number): Promise<number> {
+    // Buscar todas as transações e recalcular
+    const transactions = 
+      await this.transactionsService.findAllByPortfolioId(portfolioId);
+    return this.calculateAveragePrice(transactions);
+  }
+
+  /**
+   * Recalcula apenas o preço médio e atualiza o portfolio
+   * Útil quando só precisamos atualizar o preço médio sem afetar o saldo
+   */
+  async recalculateAveragePrice(portfolioId: number): Promise<void> {
+    const portfolio = await this.repository.findOne({
+      where: { id: portfolioId },
+    });
+
+    if (!portfolio) {
+      throw new NotFoundException(`Portfolio with ID ${portfolioId} not found`);
+    }
+
+    // Buscar todas as transações e recalcular
+    const transactions = 
+      await this.transactionsService.findAllByPortfolioId(portfolioId);
+    const averagePrice = this.calculateAveragePrice(transactions);
+
+    // Atualizar apenas o preço médio
+    await this.repository.update(portfolioId, { averagePrice });
   }
 }

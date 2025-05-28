@@ -16,7 +16,12 @@ import {
 } from 'typeorm';
 
 @Entity({ name: 'portfolio' })
-@Unique('UQ_user_asset_platform', ['userId', 'assetId', 'platformId'])
+@Unique('UQ_user_asset_platform_goal', [
+  'userId',
+  'assetId',
+  'platformId',
+  'savingsGoalId',
+])
 export class Portfolio {
   @ApiProperty({ description: 'Portfolio ID' })
   @PrimaryGeneratedColumn()

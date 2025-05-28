@@ -52,8 +52,9 @@ export class TransactionsService {
     const transaction = this.repository.create(createTransactionDto);
     const savedTransaction = await this.repository.save(transaction);
 
-    // ✅ Recalcular saldo do portfolio após a transação
+    // ✅ Recalcular saldo e preço médio do portfolio após a transação
     await this.portfoliosService.recalculatePortfolioBalance(portfolio.id);
+    // Não precisamos chamar recalculateAveragePrice separadamente pois o recalculatePortfolioBalance já atualiza ambos
 
     return savedTransaction;
   }
@@ -226,10 +227,11 @@ export class TransactionsService {
     this.repository.merge(transaction, updateTransactionDto);
     const updatedTransaction = await this.repository.save(transaction);
 
-    // ✅ Recalcular saldo do portfolio após a atualização
+    // ✅ Recalcular saldo e preço médio do portfolio após a atualização
     await this.portfoliosService.recalculatePortfolioBalance(
       transaction.portfolioId,
     );
+    // Não precisamos chamar recalculateAveragePrice separadamente pois o recalculatePortfolioBalance já atualiza ambos
 
     return updatedTransaction;
   }
@@ -257,10 +259,15 @@ export class TransactionsService {
 
   async remove(id: number, userId: number): Promise<void> {
     // Verifica se a transação existe e pertence ao usuário
-    await this.findOne(id, userId);
+    const transaction = await this.findOne(id, userId);
+    const portfolioId = transaction.portfolioId;
 
     // Usa softDelete em vez de remove para fazer soft delete
     await this.repository.softDelete(id);
+
+    // ✅ Recalcular saldo e preço médio do portfolio após a exclusão
+    await this.portfoliosService.recalculatePortfolioBalance(portfolioId);
+    // Não precisamos chamar recalculateAveragePrice separadamente pois o recalculatePortfolioBalance já atualiza ambos
   }
 
   /**

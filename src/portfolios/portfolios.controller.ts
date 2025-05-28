@@ -71,9 +71,8 @@ export class PortfoliosController {
     @Param('id') id: string,
     @UserDecorator() userId: number,
   ): Promise<PortfolioResponseDto> {
-    return new PortfolioResponseDto(
-      await this.portfoliosService.findOne(+id, userId),
-    );
+    const portfolio = await this.portfoliosService.findOne(+id, userId);
+    return new PortfolioResponseDto(portfolio);
   }
 
   @Patch(':id')
