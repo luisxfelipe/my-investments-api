@@ -1,7 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { AssetTypeResponseDto } from 'src/asset-types/dto/asset-type-response.dto';
 import { CategoryResponseDto } from 'src/categories/dto/category-response.dto';
-import { PlatformResponseDto } from 'src/platforms/dto/platform-response.dto';
 import { Asset } from '../entities/asset.entity';
 
 export class AssetResponseDto {
@@ -25,9 +24,6 @@ export class AssetResponseDto {
 
   @ApiProperty({ description: 'Asset Type', type: AssetTypeResponseDto })
   assetType?: AssetTypeResponseDto;
-
-  @ApiProperty({ description: 'Platform', type: PlatformResponseDto })
-  platform?: PlatformResponseDto;
 
   constructor(asset: Asset) {
     this.id = asset.id;
