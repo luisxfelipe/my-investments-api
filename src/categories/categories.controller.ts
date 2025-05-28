@@ -6,13 +6,22 @@ import {
   Patch,
   Param,
   Delete,
+  Query,
 } from '@nestjs/common';
 import { CategoriesService } from './categories.service';
 import { CreateCategoryDto } from './dto/create-category.dto';
 import { UpdateCategoryDto } from './dto/update-category.dto';
-import { ApiOperation, ApiParam, ApiResponse, ApiTags } from '@nestjs/swagger';
+import {
+  ApiOperation,
+  ApiParam,
+  ApiQuery,
+  ApiResponse,
+  ApiTags,
+} from '@nestjs/swagger';
 import { CategoryResponseDto } from './dto/category-response.dto';
 import { UserDecorator } from 'src/decorators/user.decorator';
+import { PaginatedResponseDto } from 'src/dtos/paginated-response.dto';
+import { PaginatedCategoryResponseDto } from './dto/paginated-category-response.dto';
 
 @ApiTags('categories')
 @Controller('categories')
@@ -51,6 +60,53 @@ export class CategoriesController {
   ): Promise<CategoryResponseDto[]> {
     const categories = await this.categoriesService.findAll(userId);
     return categories.map((category) => new CategoryResponseDto(category));
+  }
+
+  @Get('pages')
+  @ApiOperation({ summary: 'Find all categories with pagination' })
+  @ApiQuery({
+    name: 'page',
+    required: false,
+    description: 'Page number',
+    type: Number,
+  })
+  @ApiQuery({
+    name: 'take',
+    required: false,
+    description: 'Items per page',
+    type: Number,
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Paginated list of categories',
+    type: PaginatedCategoryResponseDto,
+  })
+  async findAllWithPagination(
+    @UserDecorator() userId: number,
+    @Query('take') take: string = '10',
+    @Query('page') page: string = '1',
+  ): Promise<PaginatedResponseDto<CategoryResponseDto>> {
+    const takeNumber = parseInt(take);
+    const pageNumber = parseInt(page);
+
+    const categories = await this.categoriesService.findAllWithPagination(
+      takeNumber,
+      pageNumber,
+      userId,
+    );
+
+    // Transformar as categorias em DTOs de resposta
+    const categoryDtos = categories.data.map(
+      (category) => new CategoryResponseDto(category),
+    );
+
+    // Retornar o objeto PaginatedResponseDto com os dados transformados
+    return new PaginatedResponseDto<CategoryResponseDto>(
+      categoryDtos,
+      categories.meta.totalItems,
+      categories.meta.itemsPerPage,
+      categories.meta.currentPage,
+    );
   }
 
   @Get(':id')

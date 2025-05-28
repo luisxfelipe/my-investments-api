@@ -8,6 +8,7 @@ import { UpdateCategoryDto } from './dto/update-category.dto';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Category } from './entities/category.entity';
 import { Repository } from 'typeorm';
+import { PaginatedResponseDto } from 'src/dtos/paginated-response.dto';
 
 @Injectable()
 export class CategoriesService {
@@ -44,6 +45,23 @@ export class CategoriesService {
       where: { userId },
       order: { name: 'ASC' },
     });
+  }
+
+  async findAllWithPagination(
+    take = 10,
+    page = 1,
+    userId: number,
+  ): Promise<PaginatedResponseDto<Category>> {
+    const skip = (page - 1) * take;
+
+    const [categories, total] = await this.repository.findAndCount({
+      where: { userId },
+      take,
+      skip,
+      order: { name: 'ASC' },
+    });
+
+    return new PaginatedResponseDto(categories, total, take, page);
   }
 
   async findOne(id: number, userId: number): Promise<Category> {
