@@ -6,13 +6,16 @@ import {
   Patch,
   Param,
   Delete,
+  Query,
 } from '@nestjs/common';
 import { AssetsService } from './assets.service';
 import { CreateAssetDto } from './dto/create-asset.dto';
 import { UpdateAssetDto } from './dto/update-asset.dto';
-import { ApiOperation, ApiParam, ApiResponse } from '@nestjs/swagger';
+import { ApiOperation, ApiParam, ApiQuery, ApiResponse } from '@nestjs/swagger';
 import { AssetResponseDto } from './dto/asset-response.dto';
 import { UserDecorator } from '../decorators/user.decorator';
+import { PaginatedResponseDto } from 'src/dtos/paginated-response.dto';
+import { PaginatedAssetResponseDto } from './dto/paginated-asset-response.dto';
 
 @Controller('assets')
 export class AssetsController {
@@ -49,6 +52,51 @@ export class AssetsController {
   async findAll(@UserDecorator() userId: number): Promise<AssetResponseDto[]> {
     const assets = await this.assetsService.findAll(userId);
     return assets.map((asset) => new AssetResponseDto(asset));
+  }
+
+  @Get('pages')
+  @ApiOperation({ summary: 'Find all assets with pagination' })
+  @ApiQuery({
+    name: 'page',
+    required: false,
+    description: 'Page number',
+    type: Number,
+  })
+  @ApiQuery({
+    name: 'take',
+    required: false,
+    description: 'Items per page',
+    type: Number,
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Paginated list of assets',
+    type: PaginatedAssetResponseDto,
+  })
+  async findAllWithPagination(
+    @UserDecorator() userId: number,
+    @Query('take') take: string = '10',
+    @Query('page') page: string = '1',
+  ): Promise<PaginatedResponseDto<AssetResponseDto>> {
+    const takeNumber = parseInt(take);
+    const pageNumber = parseInt(page);
+
+    const assets = await this.assetsService.findAllWithPagination(
+      takeNumber,
+      pageNumber,
+      userId,
+    );
+
+    // Transformar os assets em DTOs de resposta
+    const assetDtos = assets.data.map((asset) => new AssetResponseDto(asset));
+
+    // Retornar o objeto PaginatedResponseDto com os dados transformados
+    return new PaginatedResponseDto<AssetResponseDto>(
+      assetDtos,
+      assets.meta.totalItems,
+      assets.meta.itemsPerPage,
+      assets.meta.currentPage,
+    );
   }
 
   @Get(':id')

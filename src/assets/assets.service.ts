@@ -15,6 +15,7 @@ import { AssetQuotesService } from 'src/asset-quotes/asset-quotes.service';
 import { Repository, Not } from 'typeorm';
 import { InjectRepository } from '@nestjs/typeorm';
 import { In } from 'typeorm';
+import { PaginatedResponseDto } from 'src/dtos/paginated-response.dto';
 
 @Injectable()
 export class AssetsService {
@@ -73,6 +74,24 @@ export class AssetsService {
       where: { userId },
       relations: ['category', 'assetType'],
     });
+  }
+
+  async findAllWithPagination(
+    take = 10,
+    page = 1,
+    userId: number,
+  ): Promise<PaginatedResponseDto<Asset>> {
+    const skip = (page - 1) * take;
+
+    const [assets, total] = await this.repository.findAndCount({
+      where: { userId },
+      take,
+      skip,
+      relations: ['category', 'assetType'],
+      order: { name: 'ASC' },
+    });
+
+    return new PaginatedResponseDto(assets, total, take, page);
   }
 
   async findOne(id: number, userId: number): Promise<Asset> {
