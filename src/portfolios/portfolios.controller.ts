@@ -8,12 +8,15 @@ import {
   Delete,
   HttpCode,
   HttpStatus,
+  Query,
+  ParseIntPipe,
 } from '@nestjs/common';
 import { PortfoliosService } from './portfolios.service';
 import { CreatePortfolioDto } from './dto/create-portfolio.dto';
 import { UpdatePortfolioDto } from './dto/update-portfolio.dto';
-import { ApiOperation, ApiParam, ApiResponse } from '@nestjs/swagger';
+import { ApiOperation, ApiParam, ApiResponse, ApiQuery } from '@nestjs/swagger';
 import { PortfolioResponseDto } from './dto/portfolio-response.dto';
+import { PaginatedPortfolioResponseDto } from './dto/paginated-portfolio-response.dto';
 import { UserDecorator } from '../decorators/user.decorator';
 
 @Controller('portfolios')
@@ -58,6 +61,43 @@ export class PortfoliosController {
     const portfolios = await this.portfoliosService.findAll(userId);
 
     return portfolios.map((portfolio) => new PortfolioResponseDto(portfolio));
+  }
+
+  @Get('pages')
+  @ApiOperation({ summary: 'Find all portfolios with pagination' })
+  @ApiQuery({
+    name: 'take',
+    required: false,
+    description: 'Number of items per page',
+    example: 10,
+  })
+  @ApiQuery({
+    name: 'page',
+    required: false,
+    description: 'Page number',
+    example: 1,
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Paginated list of portfolios',
+    type: PaginatedPortfolioResponseDto,
+  })
+  async findAllWithPagination(
+    @Query('take', new ParseIntPipe({ optional: true })) take = 10,
+    @Query('page', new ParseIntPipe({ optional: true })) page = 1,
+    @UserDecorator() userId: number,
+  ): Promise<PaginatedPortfolioResponseDto> {
+    const paginatedPortfolios =
+      await this.portfoliosService.findAllWithPagination(take, page, userId);
+
+    const data = paginatedPortfolios.data.map(
+      (portfolio) => new PortfolioResponseDto(portfolio),
+    );
+
+    return {
+      data,
+      meta: paginatedPortfolios.meta,
+    };
   }
 
   @Get(':id')

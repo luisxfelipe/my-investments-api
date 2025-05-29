@@ -16,6 +16,7 @@ import { Repository, IsNull } from 'typeorm';
 import { InjectRepository } from '@nestjs/typeorm';
 import { TransactionsService } from 'src/transactions/transactions.service';
 import { Transaction } from 'src/transactions/entities/transaction.entity';
+import { PaginatedResponseDto } from '../dtos/paginated-response.dto';
 
 @Injectable()
 export class PortfoliosService {
@@ -108,9 +109,34 @@ export class PortfoliosService {
         'asset.category',
         'asset.assetType',
         'platform',
-        'savingsGoal',
+        'savingGoal',
       ],
     });
+  }
+
+  async findAllWithPagination(
+    take = 10,
+    page = 1,
+    userId: number,
+  ): Promise<PaginatedResponseDto<Portfolio>> {
+    const skip = (page - 1) * take;
+
+    const [portfolios, total] = await this.repository.findAndCount({
+      where: { userId },
+      take,
+      skip,
+      relations: [
+        'user',
+        'asset',
+        'asset.category',
+        'asset.assetType',
+        'platform',
+        'savingGoal',
+      ],
+      order: { createdAt: 'DESC' },
+    });
+
+    return new PaginatedResponseDto(portfolios, total, take, page);
   }
 
   /**
@@ -120,7 +146,7 @@ export class PortfoliosService {
    * @param forceAccurateCalculation força o recálculo preciso (para operações financeiras críticas)
    */
   async findOne(
-    id: number, 
+    id: number,
     userId?: number,
     forceAccurateCalculation: boolean = false,
   ): Promise<Portfolio> {
@@ -150,7 +176,7 @@ export class PortfoliosService {
       // Recalcular saldo e preço médio com precisão
       const accurateBalance = await this.getCurrentBalanceAccurate(id);
       const accurateAveragePrice = await this.getAveragePriceAccurate(id);
-      
+
       // Criar cópia para não modificar a entidade persistida
       return {
         ...portfolio,
@@ -393,7 +419,7 @@ export class PortfoliosService {
    */
   async getAveragePriceAccurate(portfolioId: number): Promise<number> {
     // Buscar todas as transações e recalcular
-    const transactions = 
+    const transactions =
       await this.transactionsService.findAllByPortfolioId(portfolioId);
     return this.calculateAveragePrice(transactions);
   }
@@ -412,7 +438,7 @@ export class PortfoliosService {
     }
 
     // Buscar todas as transações e recalcular
-    const transactions = 
+    const transactions =
       await this.transactionsService.findAllByPortfolioId(portfolioId);
     const averagePrice = this.calculateAveragePrice(transactions);
 
