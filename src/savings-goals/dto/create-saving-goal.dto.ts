@@ -2,8 +2,8 @@ import { ApiProperty } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 import {
   IsDate,
-  IsDecimal,
   IsNotEmpty,
+  IsNumber,
   IsOptional,
   IsString,
   MaxLength,
@@ -28,9 +28,9 @@ export class CreateSavingGoalDto {
 
   @ApiProperty({ description: 'Target value to be reached', required: false })
   @IsOptional()
-  @IsDecimal(
-    { decimal_digits: '0,2' },
-    { message: 'Target value must be a decimal with up to 2 decimal places' },
+  @IsNumber(
+    { maxDecimalPlaces: 2 },
+    { message: 'Target value must be a number with up to 2 decimal places' },
   )
   targetValue?: number;
 
