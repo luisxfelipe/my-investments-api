@@ -6,6 +6,8 @@ import {
   Patch,
   Param,
   Delete,
+  HttpCode,
+  HttpStatus,
 } from '@nestjs/common';
 import { SavingsGoalsService } from './savings-goals.service';
 import { CreateSavingGoalDto } from './dto/create-saving-goal.dto';
@@ -91,10 +93,11 @@ export class SavingsGoalsController {
   }
 
   @Delete(':id')
+  @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({ summary: 'Remove a savings goal by id (soft delete)' })
   @ApiParam({ name: 'id', description: 'Savings Goal id' })
   @ApiResponse({
-    status: 200,
+    status: 204,
     description: 'Savings Goal has been marked as successfully removed',
   })
   @ApiResponse({ status: 404, description: 'Savings Goal not found' })

@@ -7,6 +7,8 @@ import {
   Param,
   Delete,
   Query,
+  HttpCode,
+  HttpStatus,
 } from '@nestjs/common';
 import { PlatformsService } from './platforms.service';
 import { CreatePlatformDto } from './dto/create-platform.dto';
@@ -152,10 +154,11 @@ export class PlatformsController {
     );
   }
   @Delete(':id')
+  @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({ summary: 'Remove a platform by id (soft delete)' })
   @ApiParam({ name: 'id', description: 'Platform id' })
   @ApiResponse({
-    status: 200,
+    status: 204,
     description: 'Platform has been marked as successfully removed',
   })
   @ApiResponse({ status: 404, description: 'Platform not found' })

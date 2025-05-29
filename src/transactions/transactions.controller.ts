@@ -7,6 +7,8 @@ import {
   Param,
   Delete,
   Query,
+  HttpCode,
+  HttpStatus,
 } from '@nestjs/common';
 import { TransactionsService } from './transactions.service';
 import { CreateTransactionDto } from './dto/create-transaction.dto';
@@ -154,10 +156,11 @@ export class TransactionsController {
   }
 
   @Delete(':id')
+  @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({ summary: 'Remove a transaction by id (soft delete)' })
   @ApiParam({ name: 'id', description: 'Transaction id' })
   @ApiResponse({
-    status: 200,
+    status: 204,
     description: 'Transaction has been marked as successfully removed',
   })
   @ApiResponse({ status: 404, description: 'Transaction not found' })

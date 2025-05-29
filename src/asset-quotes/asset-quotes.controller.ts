@@ -3,6 +3,8 @@ import {
   Controller,
   Delete,
   Get,
+  HttpCode,
+  HttpStatus,
   Param,
   Patch,
   Post,
@@ -192,10 +194,11 @@ export class AssetQuotesController {
   }
 
   @Delete(':id')
+  @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({ summary: 'Delete a quote by ID (soft delete)' })
   @ApiParam({ name: 'id', description: 'Quote ID' })
   @ApiResponse({
-    status: 200,
+    status: 204,
     description: 'Quote has been marked as successfully removed',
   })
   @ApiResponse({ status: 404, description: 'Quote not found.' })

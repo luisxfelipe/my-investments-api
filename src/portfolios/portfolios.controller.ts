@@ -6,6 +6,8 @@ import {
   Patch,
   Param,
   Delete,
+  HttpCode,
+  HttpStatus,
 } from '@nestjs/common';
 import { PortfoliosService } from './portfolios.service';
 import { CreatePortfolioDto } from './dto/create-portfolio.dto';
@@ -103,10 +105,11 @@ export class PortfoliosController {
   }
 
   @Delete(':id')
+  @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({ summary: 'Remove a portfolio by id (soft delete)' })
   @ApiParam({ name: 'id', description: 'Portfolio id' })
   @ApiResponse({
-    status: 200,
+    status: 204,
     description: 'Portfolio has been marked as successfully removed',
   })
   @ApiResponse({ status: 404, description: 'Portfolio not found' })

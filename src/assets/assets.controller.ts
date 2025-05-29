@@ -7,6 +7,8 @@ import {
   Param,
   Delete,
   Query,
+  HttpCode,
+  HttpStatus,
 } from '@nestjs/common';
 import { AssetsService } from './assets.service';
 import { CreateAssetDto } from './dto/create-asset.dto';
@@ -139,10 +141,11 @@ export class AssetsController {
   }
 
   @Delete(':id')
+  @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({ summary: 'Remove an asset by id (soft delete)' })
   @ApiParam({ name: 'id', description: 'Asset id' })
   @ApiResponse({
-    status: 200,
+    status: 204,
     description: 'Asset has been marked as successfully removed',
   })
   @ApiResponse({ status: 404, description: 'Asset not found' })

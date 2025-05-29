@@ -7,6 +7,8 @@ import {
   Param,
   Delete,
   Query,
+  HttpCode,
+  HttpStatus,
 } from '@nestjs/common';
 import { CategoriesService } from './categories.service';
 import { CreateCategoryDto } from './dto/create-category.dto';
@@ -151,10 +153,11 @@ export class CategoriesController {
   }
 
   @Delete(':id')
+  @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({ summary: 'Remove a category by id (soft delete)' })
   @ApiParam({ name: 'id', description: 'Category id' })
   @ApiResponse({
-    status: 200,
+    status: 204,
     description: 'Category has been marked as successfully removed',
   })
   @ApiResponse({ status: 404, description: 'Category not found' })

@@ -6,6 +6,8 @@ import {
   Patch,
   Param,
   Delete,
+  HttpCode,
+  HttpStatus,
 } from '@nestjs/common';
 import { TransactionTypesService } from './transaction-types.service';
 import { CreateTransactionTypeDto } from './dto/create-transaction-type.dto';
@@ -106,10 +108,11 @@ export class TransactionTypesController {
   }
 
   @Delete(':id')
+  @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({ summary: 'Remove a transaction type by id (soft delete)' })
   @ApiParam({ name: 'id', description: 'Transaction Type id' })
   @ApiResponse({
-    status: 200,
+    status: 204,
     description: 'Transaction Type has been marked as successfully removed',
   })
   @ApiResponse({ status: 404, description: 'Transaction Type not found' })
