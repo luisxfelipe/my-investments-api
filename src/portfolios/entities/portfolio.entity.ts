@@ -20,7 +20,7 @@ import {
   'userId',
   'assetId',
   'platformId',
-  'savingsGoalId',
+  'savingGoalId',
 ])
 export class Portfolio {
   @ApiProperty({ description: 'Portfolio ID' })
@@ -39,9 +39,9 @@ export class Portfolio {
   @Column({ name: 'platform_id' })
   platformId: number;
 
-  @ApiProperty({ description: 'Savings Goal ID', required: false })
+  @ApiProperty({ description: 'Saving Goal ID', required: false })
   @Column({ name: 'saving_goal_id', nullable: true })
-  savingsGoalId: number;
+  savingGoalId: number;
 
   @ApiProperty({ description: 'Current Balance' })
   @Column({

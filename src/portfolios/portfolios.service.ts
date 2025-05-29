@@ -48,23 +48,23 @@ export class PortfoliosService {
     await this.platformsService.findOne(createPortfolioDto.platformId, userId);
 
     // Verifica se a caixinha/objetivo existe e pertence ao usuário, se foi fornecida
-    if (createPortfolioDto.savingsGoalId) {
+    if (createPortfolioDto.savingGoalId) {
       await this.savingsGoalsService.findOne(
-        createPortfolioDto.savingsGoalId,
+        createPortfolioDto.savingGoalId,
         userId,
       );
     }
 
     // VALIDAÇÃO MODELO "CAIXINHAS":
     // Verifica se já existe portfolio com a mesma combinação exata
-    // (incluindo savingsGoalId - mesmo que seja null)
-    const existingPortfolio = createPortfolioDto.savingsGoalId
+    // (incluindo savingGoalId - mesmo que seja null)
+    const existingPortfolio = createPortfolioDto.savingGoalId
       ? await this.repository.findOne({
           where: {
             userId,
             assetId: createPortfolioDto.assetId,
             platformId: createPortfolioDto.platformId,
-            savingsGoalId: createPortfolioDto.savingsGoalId,
+            savingGoalId: createPortfolioDto.savingGoalId,
           },
         })
       : await this.repository.findOne({
@@ -72,12 +72,12 @@ export class PortfoliosService {
             userId,
             assetId: createPortfolioDto.assetId,
             platformId: createPortfolioDto.platformId,
-            savingsGoalId: IsNull(),
+            savingGoalId: IsNull(),
           },
         });
 
     if (existingPortfolio) {
-      if (createPortfolioDto.savingsGoalId) {
+      if (createPortfolioDto.savingGoalId) {
         throw new BadRequestException(
           `Portfolio already exists for this asset and platform with the same savings goal`,
         );
@@ -198,9 +198,9 @@ export class PortfoliosService {
     const portfolio = await this.findOne(id, userId);
 
     // Verifica se a caixinha/objetivo existe e pertence ao usuário, se foi fornecida
-    if (updatePortfolioDto.savingsGoalId) {
+    if (updatePortfolioDto.savingGoalId) {
       await this.savingsGoalsService.findOne(
-        updatePortfolioDto.savingsGoalId,
+        updatePortfolioDto.savingGoalId,
         userId,
       );
     }
@@ -243,9 +243,9 @@ export class PortfoliosService {
    * Conta quantos portfólios estão usando um objetivo de poupança específico
    * Nota: Não filtramos por usuário aqui, pois um objetivo só pode ser usado por seu próprio dono
    */
-  async countBySavingsGoalId(savingsGoalId: number): Promise<number> {
+  async countBySavingGoalId(savingGoalId: number): Promise<number> {
     return this.repository.count({
-      where: { savingsGoalId },
+      where: { savingGoalId },
     });
   }
 

@@ -14,11 +14,11 @@ export class CreatePortfolioDto {
   @IsPositive({ message: 'Platform ID must be a positive number' })
   platformId: number;
 
-  @ApiProperty({ description: 'Savings Goal ID', required: false })
+  @ApiProperty({ description: 'Saving Goal ID', required: false })
   @IsOptional()
-  @IsInt({ message: 'Savings Goal ID must be an integer' })
-  @IsPositive({ message: 'Savings Goal ID must be a positive number' })
-  savingsGoalId?: number;
+  @IsInt({ message: 'Saving Goal ID must be an integer' })
+  @IsPositive({ message: 'Saving Goal ID must be a positive number' })
+  savingGoalId?: number;
 
   // userId removido - será obtido do usuário autenticado
 }

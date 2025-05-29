@@ -245,8 +245,8 @@ export class TransactionsService {
       .leftJoinAndSelect('transaction.portfolio', 'portfolio')
       .leftJoinAndSelect('transaction.transactionType', 'transactionType')
       .leftJoinAndSelect('portfolio.asset', 'asset')
-      .leftJoinAndSelect('portfolio.asset.category', 'category')
-      .leftJoinAndSelect('portfolio.asset.assetType', 'assetType')
+      .leftJoinAndSelect('asset.category', 'category')
+      .leftJoinAndSelect('asset.assetType', 'assetType')
       .leftJoinAndSelect('portfolio.platform', 'platform')
       .where('transaction.portfolioId = :portfolioId', { portfolioId });
 

@@ -113,7 +113,7 @@ export class SavingsGoalsService {
 
     // Verificar se existem portfolios usando este objetivo de poupança
     const portfoliosCount =
-      await this.portfoliosService.countBySavingsGoalId(id);
+      await this.portfoliosService.countBySavingGoalId(id);
     if (portfoliosCount > 0) {
       throw new BadRequestException(
         `Cannot delete savings goal with ID ${id}. It is being used by ${portfoliosCount} portfolio(s).`,

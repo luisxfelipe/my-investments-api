@@ -17,8 +17,8 @@ export class PortfolioResponseDto {
   @ApiProperty({ description: 'Platform ID' })
   platformId: number;
 
-  @ApiProperty({ description: 'Savings Goal ID', required: false })
-  savingsGoalId?: number;
+  @ApiProperty({ description: 'Saving Goal ID', required: false })
+  savingGoalId?: number;
 
   @ApiProperty({ description: 'Current Balance' })
   currentBalance: number;
@@ -32,15 +32,15 @@ export class PortfolioResponseDto {
   @ApiProperty({ description: 'Platform', type: PlatformResponseDto })
   platform?: PlatformResponseDto;
 
-  @ApiProperty({ description: 'Savings Goal', type: SavingGoalResponseDto })
-  savingsGoal?: SavingGoalResponseDto;
+  @ApiProperty({ description: 'Saving Goal', type: SavingGoalResponseDto })
+  savingGoal?: SavingGoalResponseDto;
 
   constructor(portfolio: Portfolio) {
     this.id = portfolio.id;
     this.userId = portfolio.userId;
     this.assetId = portfolio.assetId;
     this.platformId = portfolio.platformId;
-    this.savingsGoalId = portfolio.savingsGoalId;
+    this.savingGoalId = portfolio.savingGoalId;
     this.currentBalance = portfolio.currentBalance;
     this.averagePrice = portfolio.averagePrice;
 
@@ -53,7 +53,7 @@ export class PortfolioResponseDto {
     }
 
     if (portfolio.savingGoal) {
-      this.savingsGoal = new SavingGoalResponseDto(portfolio.savingGoal);
+      this.savingGoal = new SavingGoalResponseDto(portfolio.savingGoal);
     }
   }
 }
