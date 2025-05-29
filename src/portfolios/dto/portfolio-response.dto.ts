@@ -1,6 +1,5 @@
 import { AssetResponseDto } from 'src/assets/dto/asset-response.dto';
 import { PlatformResponseDto } from 'src/platforms/dto/platform-response.dto';
-import { UserResponseDto } from 'src/users/dto/user-response.dto';
 import { Portfolio } from '../entities/portfolio.entity';
 import { ApiProperty } from '@nestjs/swagger';
 import { SavingGoalResponseDto } from 'src/savings-goals/dto/saving-goal-response.dto';
@@ -27,9 +26,6 @@ export class PortfolioResponseDto {
   @ApiProperty({ description: 'Average Price' })
   averagePrice: number;
 
-  @ApiProperty({ description: 'User', type: UserResponseDto })
-  user?: UserResponseDto;
-
   @ApiProperty({ description: 'Asset', type: AssetResponseDto })
   asset?: AssetResponseDto;
 
@@ -47,10 +43,6 @@ export class PortfolioResponseDto {
     this.savingsGoalId = portfolio.savingsGoalId;
     this.currentBalance = portfolio.currentBalance;
     this.averagePrice = portfolio.averagePrice;
-
-    if (portfolio.user) {
-      this.user = new UserResponseDto(portfolio.user);
-    }
 
     if (portfolio.asset) {
       this.asset = new AssetResponseDto(portfolio.asset);

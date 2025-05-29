@@ -104,7 +104,6 @@ export class PortfoliosService {
     return this.repository.find({
       where: { userId },
       relations: [
-        'user',
         'asset',
         'asset.category',
         'asset.assetType',
@@ -126,7 +125,6 @@ export class PortfoliosService {
       take,
       skip,
       relations: [
-        'user',
         'asset',
         'asset.category',
         'asset.assetType',
@@ -158,12 +156,11 @@ export class PortfoliosService {
     const portfolio = await this.repository.findOne({
       where: whereClause,
       relations: [
-        'user',
         'asset',
         'asset.category',
         'asset.assetType',
         'platform',
-        'savingsGoal',
+        'savingGoal',
       ],
     });
 
