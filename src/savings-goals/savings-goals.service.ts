@@ -1,3 +1,4 @@
+import { PaginatedResponseDto } from '../dtos/paginated-response.dto';
 import {
   BadRequestException,
   Injectable,
@@ -44,6 +45,24 @@ export class SavingsGoalsService {
       relations: ['user'],
       order: { name: 'ASC' },
     });
+  }
+
+  async findAllWithPagination(
+    take = 10,
+    page = 1,
+    userId: number,
+  ): Promise<PaginatedResponseDto<SavingGoal>> {
+    const skip = (page - 1) * take;
+
+    const [savingGoals, total] = await this.repository.findAndCount({
+      where: { userId },
+      take,
+      skip,
+      relations: ['user'],
+      order: { name: 'ASC' },
+    });
+
+    return new PaginatedResponseDto(savingGoals, total, take, page);
   }
 
   async findOne(id: number, userId: number): Promise<SavingGoal> {

@@ -8,15 +8,18 @@ import {
   Delete,
   HttpCode,
   HttpStatus,
+  Query,
+  ParseIntPipe,
 } from '@nestjs/common';
 import { SavingsGoalsService } from './savings-goals.service';
 import { CreateSavingGoalDto } from './dto/create-saving-goal.dto';
 import { UpdateSavingGoalDto } from './dto/update-saving-goal.dto';
-import { ApiOperation, ApiParam, ApiResponse } from '@nestjs/swagger';
+import { ApiOperation, ApiParam, ApiResponse, ApiQuery } from '@nestjs/swagger';
 import { UserDecorator } from 'src/decorators/user.decorator';
 import { SavingGoalResponseDto } from './dto/saving-goal-response.dto';
+import { PaginatedSavingGoalResponseDto } from './dto/paginated-saving-goal-response.dto';
 
-@Controller('savings-goals')
+@Controller('saving-goals')
 export class SavingsGoalsController {
   constructor(private readonly savingsGoalsService: SavingsGoalsService) {}
 
@@ -52,6 +55,42 @@ export class SavingsGoalsController {
     return savingsGoals.map(
       (savingsGoal) => new SavingGoalResponseDto(savingsGoal),
     );
+  }
+
+  @Get('pages')
+  @ApiOperation({ summary: 'Find all savings goals with pagination' })
+  @ApiQuery({
+    name: 'take',
+    required: false,
+    description: 'Number of items per page',
+    example: 10,
+  })
+  @ApiQuery({
+    name: 'page',
+    required: false,
+    description: 'Page number',
+    example: 1,
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Paginated list of savings goals',
+    type: PaginatedSavingGoalResponseDto,
+  })
+  async findAllWithPagination(
+    @Query('take', new ParseIntPipe({ optional: true })) take = 10,
+    @Query('page', new ParseIntPipe({ optional: true })) page = 1,
+    @UserDecorator() userId: number,
+  ): Promise<PaginatedSavingGoalResponseDto> {
+    const paginated = await this.savingsGoalsService.findAllWithPagination(
+      take,
+      page,
+      userId,
+    );
+    const data = paginated.data.map((goal) => new SavingGoalResponseDto(goal));
+    return {
+      data,
+      meta: paginated.meta,
+    };
   }
 
   @Get(':id')
