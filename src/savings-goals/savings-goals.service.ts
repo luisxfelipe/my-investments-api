@@ -42,7 +42,6 @@ export class SavingsGoalsService {
   async findAll(userId: number): Promise<SavingGoal[]> {
     return this.repository.find({
       where: { userId },
-      relations: ['user'],
       order: { name: 'ASC' },
     });
   }
@@ -58,7 +57,6 @@ export class SavingsGoalsService {
       where: { userId },
       take,
       skip,
-      relations: ['user'],
       order: { name: 'ASC' },
     });
 
@@ -68,7 +66,6 @@ export class SavingsGoalsService {
   async findOne(id: number, userId: number): Promise<SavingGoal> {
     const savingsGoal = await this.repository.findOne({
       where: { id, userId },
-      relations: ['user'],
     });
 
     if (!savingsGoal) {
@@ -84,7 +81,6 @@ export class SavingsGoalsService {
   async findOneById(id: number): Promise<SavingGoal> {
     const savingsGoal = await this.repository.findOne({
       where: { id },
-      relations: ['user'],
     });
 
     if (!savingsGoal) {
