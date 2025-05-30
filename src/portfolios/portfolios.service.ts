@@ -185,6 +185,14 @@ export class PortfoliosService {
     return portfolio;
   }
 
+  /**
+   * Atualiza um portfolio específico
+   *
+   * @param id ID do portfolio a ser atualizado
+   * @param updatePortfolioDto Dados para atualização
+   * @param userId ID do usuário para verificar permissão
+   * @returns Portfolio atualizado com relações
+   */
   async update(
     id: number,
     updatePortfolioDto: UpdatePortfolioDto,
@@ -197,32 +205,73 @@ export class PortfoliosService {
     // Verifica se o portfolio existe e pertence ao usuário
     const portfolio = await this.findOne(id, userId);
 
-    // Verifica se a caixinha/objetivo existe e pertence ao usuário, se foi fornecida
+    // NOVA REGRA: Impedir remoção de meta de economia existente
     if (
-      updatePortfolioDto.savingGoalId !== undefined &&
-      updatePortfolioDto.savingGoalId !== null
+      updatePortfolioDto.savingGoalId === null &&
+      portfolio.savingGoalId !== null
     ) {
-      await this.savingsGoalsService.findOne(
-        updatePortfolioDto.savingGoalId,
-        userId,
+      throw new BadRequestException(
+        `Removing a saving goal is not allowed. You can only change to another saving goal.`,
       );
     }
 
     // Criar um objeto compatível com a entidade para o merge
     const updateData: Partial<Portfolio> = {};
+
+    // Processar savingGoalId se foi informado
     if (updatePortfolioDto.savingGoalId !== undefined) {
-      updateData.savingGoalId = updatePortfolioDto.savingGoalId;
+      // Verificar se é uma meta diferente da atual
+      if (updatePortfolioDto.savingGoalId !== portfolio.savingGoalId) {
+        // Verificar se a meta existe e pertence ao usuário
+        if (updatePortfolioDto.savingGoalId !== null) {
+          await this.savingsGoalsService.findOne(
+            updatePortfolioDto.savingGoalId,
+            userId,
+          );
+        }
+
+        // Atualizar o savingGoalId
+        updateData.savingGoalId = updatePortfolioDto.savingGoalId;
+      }
     }
 
+    // Se não há nada para atualizar, retornar o portfolio atual
+    if (Object.keys(updateData).length === 0) {
+      return portfolio;
+    }
+
+    // Merge e save
     this.repository.merge(portfolio, updateData);
     const updatedPortfolio = await this.repository.save(portfolio);
 
-    // Recalcular balance e preço médio após atualização
-    // Passar o portfolio já atualizado para evitar recarregar do banco
-    return this.recalculatePortfolioBalance(
-      updatedPortfolio.id,
-      updatedPortfolio,
-    );
+    // Explicita update no banco
+    await this.repository.update(id, { savingGoalId: updateData.savingGoalId });
+
+    // Para mudanças apenas de savingGoalId, recarregar para garantir que a relação esteja correta
+    if (Object.keys(updateData).length === 1 && 'savingGoalId' in updateData) {
+      // Buscar com todas as relações, incluindo a nova meta de economia
+      const refreshedPortfolio = await this.repository.findOne({
+        where: { id: updatedPortfolio.id },
+        relations: [
+          'asset',
+          'asset.category',
+          'asset.assetType',
+          'platform',
+          'savingGoal',
+        ],
+      });
+
+      if (!refreshedPortfolio) {
+        throw new NotFoundException(
+          `Portfolio with ID ${updatedPortfolio.id} not found after update`,
+        );
+      }
+
+      return refreshedPortfolio;
+    }
+
+    // Para outras atualizações, recalcular balance e preço médio
+    return this.recalculatePortfolioBalance(updatedPortfolio.id);
   }
 
   async remove(id: number, userId: number): Promise<void> {
@@ -306,11 +355,6 @@ export class PortfoliosService {
       currentBalance,
       averagePrice,
     };
-
-    // Se temos um portfolio existente com savingGoalId alterado, incluir na atualização
-    if (existingPortfolio.savingGoalId !== undefined) {
-      updateData.savingGoalId = existingPortfolio.savingGoalId;
-    }
 
     // Atualizar campos no banco de dados
     await this.repository.update(portfolioId, updateData);
