@@ -198,18 +198,31 @@ export class PortfoliosService {
     const portfolio = await this.findOne(id, userId);
 
     // Verifica se a caixinha/objetivo existe e pertence ao usuário, se foi fornecida
-    if (updatePortfolioDto.savingGoalId) {
+    if (
+      updatePortfolioDto.savingGoalId !== undefined &&
+      updatePortfolioDto.savingGoalId !== null
+    ) {
       await this.savingsGoalsService.findOne(
         updatePortfolioDto.savingGoalId,
         userId,
       );
     }
 
-    this.repository.merge(portfolio, updatePortfolioDto);
+    // Criar um objeto compatível com a entidade para o merge
+    const updateData: Partial<Portfolio> = {};
+    if (updatePortfolioDto.savingGoalId !== undefined) {
+      updateData.savingGoalId = updatePortfolioDto.savingGoalId;
+    }
+
+    this.repository.merge(portfolio, updateData);
     const updatedPortfolio = await this.repository.save(portfolio);
 
     // Recalcular balance e preço médio após atualização
-    return this.recalculatePortfolioBalance(updatedPortfolio.id);
+    // Passar o portfolio já atualizado para evitar recarregar do banco
+    return this.recalculatePortfolioBalance(
+      updatedPortfolio.id,
+      updatedPortfolio,
+    );
   }
 
   async remove(id: number, userId: number): Promise<void> {
@@ -252,8 +265,31 @@ export class PortfoliosService {
   /**
    * Recalcula o balance atual (quantidade) e preço médio de um portfolio baseado em suas transações
    */
-  async recalculatePortfolioBalance(portfolioId: number): Promise<Portfolio> {
-    const portfolio = await this.findOne(portfolioId);
+  async recalculatePortfolioBalance(
+    portfolioId: number,
+    existingPortfolio?: Portfolio,
+  ): Promise<Portfolio> {
+    if (!existingPortfolio) {
+      // Buscar o portfolio diretamente do repositório para garantir dados atualizados
+      const foundPortfolio = await this.repository.findOne({
+        where: { id: portfolioId },
+        relations: [
+          'asset',
+          'asset.category',
+          'asset.assetType',
+          'platform',
+          'savingGoal',
+        ],
+      });
+
+      if (!foundPortfolio) {
+        throw new NotFoundException(
+          `Portfolio with ID ${portfolioId} not found`,
+        );
+      }
+
+      existingPortfolio = foundPortfolio;
+    }
 
     // Buscar todas as transações deste portfolio usando a TransactionsService
     const transactions =
@@ -265,11 +301,109 @@ export class PortfoliosService {
     // Calcular preço médio ponderado das compras
     const averagePrice = this.calculateAveragePrice(transactions);
 
-    // Atualizar o portfolio
-    portfolio.currentBalance = currentBalance;
-    portfolio.averagePrice = averagePrice;
+    // Preparar dados de atualização
+    const updateData: Partial<Portfolio> = {
+      currentBalance,
+      averagePrice,
+    };
 
-    return this.repository.save(portfolio);
+    // Se temos um portfolio existente com savingGoalId alterado, incluir na atualização
+    if (existingPortfolio.savingGoalId !== undefined) {
+      updateData.savingGoalId = existingPortfolio.savingGoalId;
+    }
+
+    // Atualizar campos no banco de dados
+    await this.repository.update(portfolioId, updateData);
+
+    // Verificar se o portfolio existente tem todas as relações necessárias
+    const hasAllRelations =
+      existingPortfolio.asset &&
+      existingPortfolio.asset.category &&
+      existingPortfolio.asset.assetType &&
+      existingPortfolio.platform;
+
+    if (hasAllRelations) {
+      // Portfolio já tem todas as relações, apenas atualizar valores calculados
+      const finalPortfolio = {
+        ...existingPortfolio,
+        currentBalance,
+        averagePrice,
+      };
+
+      // CORREÇÃO CRÍTICA: Verificar se a relação savingGoal está correta
+      // mesmo quando o portfolio tem todas as relações
+      if (existingPortfolio.savingGoal) {
+        const currentSavingGoalId = existingPortfolio.savingGoal.id;
+        if (existingPortfolio.savingGoalId !== currentSavingGoalId) {
+          if (existingPortfolio.savingGoalId) {
+            // Carregar a nova relação savingGoal
+            const newSavingGoal = await this.savingsGoalsService.findOne(
+              existingPortfolio.savingGoalId,
+              existingPortfolio.userId,
+            );
+            finalPortfolio.savingGoal = newSavingGoal;
+          } else {
+            // Se savingGoalId é null, a relação também deve ser null
+            finalPortfolio.savingGoal = null;
+          }
+        }
+      } else if (existingPortfolio.savingGoalId) {
+        // Se não há relação savingGoal mas deveria haver (savingGoalId não é null)
+        const newSavingGoal = await this.savingsGoalsService.findOne(
+          existingPortfolio.savingGoalId,
+          existingPortfolio.userId,
+        );
+        finalPortfolio.savingGoal = newSavingGoal;
+      }
+
+      return finalPortfolio;
+    } else {
+      // Portfolio não tem todas as relações, buscar do banco mas preservar campos atualizados
+      const portfolioWithRelations = await this.repository.findOne({
+        where: { id: portfolioId },
+        relations: [
+          'asset',
+          'asset.category',
+          'asset.assetType',
+          'platform',
+          'savingGoal',
+        ],
+      });
+
+      if (!portfolioWithRelations) {
+        throw new NotFoundException(
+          `Portfolio with ID ${portfolioId} not found after update`,
+        );
+      }
+
+      // Criar portfolio final preservando TODOS os campos do existingPortfolio
+      const finalPortfolio = {
+        ...portfolioWithRelations, // Base com relações
+        ...existingPortfolio, // Sobrescrever com valores atualizados
+        currentBalance, // Aplicar valores calculados
+        averagePrice,
+      };
+
+      // CORREÇÃO CRÍTICA: Se o savingGoalId foi alterado, a relação savingGoal
+      // precisa ser atualizada também, pois ela ainda aponta para o valor antigo
+      if (
+        existingPortfolio.savingGoalId !== portfolioWithRelations.savingGoalId
+      ) {
+        if (existingPortfolio.savingGoalId) {
+          // Carregar a nova relação savingGoal
+          const newSavingGoal = await this.savingsGoalsService.findOne(
+            existingPortfolio.savingGoalId,
+            portfolioWithRelations.userId, // usar o userId do portfolio para validação
+          );
+          finalPortfolio.savingGoal = newSavingGoal;
+        } else {
+          // Se savingGoalId é null, a relação também deve ser null
+          finalPortfolio.savingGoal = null;
+        }
+      }
+
+      return finalPortfolio;
+    }
   }
 
   /**

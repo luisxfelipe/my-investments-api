@@ -118,7 +118,7 @@ export class CreateTablePortfolio1747792752543 implements MigrationInterface {
     await queryRunner.createForeignKey(
       'portfolio',
       new TableForeignKey({
-        name: 'FK_PORTFOLIO_SAVINGS_GOAL',
+        name: 'FK_PORTFOLIO_SAVING_GOAL',
         columnNames: ['saving_goal_id'],
         referencedTableName: 'saving_goal',
         referencedColumnNames: ['id'],

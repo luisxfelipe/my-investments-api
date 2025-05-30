@@ -18,7 +18,7 @@ export class PortfolioResponseDto {
   platformId: number;
 
   @ApiProperty({ description: 'Saving Goal ID', required: false })
-  savingGoalId?: number;
+  savingGoalId?: number | null;
 
   @ApiProperty({ description: 'Current Balance' })
   currentBalance: number;
