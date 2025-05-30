@@ -1,9 +1,9 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { Type } from 'class-transformer';
+import { Type, Transform } from 'class-transformer';
 import {
   IsDate,
-  IsDecimal,
   IsInt,
+  IsNumber,
   IsOptional,
   IsPositive,
   IsString,
@@ -24,18 +24,30 @@ export class UpdateTransactionDto {
 
   @ApiProperty({ description: 'Quantity of the asset', required: false })
   @IsOptional()
-  @IsDecimal(
-    { decimal_digits: '0,8' },
-    { message: 'Quantity must be a decimal with up to 8 decimal places' },
-  )
+  @IsNumber({}, { message: 'Quantity must be a number' })
+  @IsPositive({ message: 'Quantity must be a positive number' })
+  @Transform(({ value }: { value: string | number | undefined }) => {
+    if (value === undefined || value === null) return undefined;
+    const num = typeof value === 'string' ? parseFloat(value) : value;
+    if (isNaN(num) || num <= 0) {
+      throw new Error('Quantity must be a positive number');
+    }
+    return num;
+  })
   quantity?: number;
 
   @ApiProperty({ description: 'Unit price of the asset', required: false })
   @IsOptional()
-  @IsDecimal(
-    { decimal_digits: '0,8' },
-    { message: 'Unit price must be a decimal with up to 8 decimal places' },
-  )
+  @IsNumber({}, { message: 'Unit price must be a number' })
+  @IsPositive({ message: 'Unit price must be a positive number' })
+  @Transform(({ value }: { value: string | number | undefined }) => {
+    if (value === undefined || value === null) return undefined;
+    const num = typeof value === 'string' ? parseFloat(value) : value;
+    if (isNaN(num) || num <= 0) {
+      throw new Error('Unit price must be a positive number');
+    }
+    return num;
+  })
   unitPrice?: number;
 
   @ApiProperty({
@@ -43,10 +55,16 @@ export class UpdateTransactionDto {
     required: false,
   })
   @IsOptional()
-  @IsDecimal(
-    { decimal_digits: '0,8' },
-    { message: 'Total value must be a decimal with up to 8 decimal places' },
-  )
+  @IsNumber({}, { message: 'Total value must be a number' })
+  @IsPositive({ message: 'Total value must be a positive number' })
+  @Transform(({ value }: { value: string | number | undefined }) => {
+    if (value === undefined || value === null) return undefined;
+    const num = typeof value === 'string' ? parseFloat(value) : value;
+    if (isNaN(num) || num <= 0) {
+      throw new Error('Total value must be a positive number');
+    }
+    return num;
+  })
   totalValue?: number;
 
   @ApiProperty({ description: 'Transaction date', required: false, type: Date })
@@ -57,10 +75,16 @@ export class UpdateTransactionDto {
 
   @ApiProperty({ description: 'Fee paid for the transaction', required: false })
   @IsOptional()
-  @IsDecimal(
-    { decimal_digits: '0,8' },
-    { message: 'Fee must be a decimal with up to 8 decimal places' },
-  )
+  @IsNumber({}, { message: 'Fee must be a number' })
+  @IsPositive({ message: 'Fee must be a positive number' })
+  @Transform(({ value }: { value: string | number | undefined }) => {
+    if (value === undefined || value === null) return undefined;
+    const num = typeof value === 'string' ? parseFloat(value) : value;
+    if (isNaN(num) || num < 0) {
+      throw new Error('Fee must be a non-negative number');
+    }
+    return num;
+  })
   fee?: number;
 
   @ApiProperty({
