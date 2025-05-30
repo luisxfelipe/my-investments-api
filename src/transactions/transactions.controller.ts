@@ -170,4 +170,79 @@ export class TransactionsController {
   ): Promise<void> {
     await this.transactionsService.remove(+id, userId);
   }
+
+  /**
+   * Busca todas as transações de uma plataforma específica
+   */
+  @Get('platform/:platformId')
+  @ApiOperation({ summary: 'Find all transactions from a specific platform' })
+  @ApiParam({ name: 'platformId', description: 'Platform id' })
+  @ApiResponse({
+    status: 200,
+    description: 'List of transactions from the platform',
+    type: [TransactionResponseDto],
+  })
+  @ApiResponse({ status: 404, description: 'Platform not found' })
+  async findByPlatform(
+    @Param('platformId') platformId: string,
+    @UserDecorator() userId: number,
+  ): Promise<TransactionResponseDto[]> {
+    const transactions = await this.transactionsService.findAllByPlatformId(
+      +platformId,
+      userId,
+    );
+    return transactions.map(
+      (transaction) => new TransactionResponseDto(transaction),
+    );
+  }
+
+  /**
+   * Busca todas as transações de uma plataforma com paginação
+   */
+  @Get('platform/:platformId/pages')
+  @ApiOperation({
+    summary: 'Find all transactions from a specific platform with pagination',
+  })
+  @ApiParam({ name: 'platformId', description: 'Platform id' })
+  @ApiQuery({
+    name: 'take',
+    required: false,
+    description: 'Number of items per page',
+    example: 10,
+  })
+  @ApiQuery({
+    name: 'page',
+    required: false,
+    description: 'Page number',
+    example: 1,
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Paginated list of transactions from the platform',
+    type: PaginatedTransactionResponseDto,
+  })
+  @ApiResponse({ status: 404, description: 'Platform not found' })
+  async findByPlatformWithPagination(
+    @Param('platformId') platformId: string,
+    @UserDecorator() userId: number,
+    @Query('take') take?: number,
+    @Query('page') page?: number,
+  ): Promise<PaginatedResponseDto<TransactionResponseDto>> {
+    const paginatedTransactions =
+      await this.transactionsService.findAllByPlatformIdWithPagination(
+        +platformId,
+        userId,
+        take,
+        page,
+      );
+
+    return new PaginatedResponseDto<TransactionResponseDto>(
+      paginatedTransactions.data.map(
+        (transaction) => new TransactionResponseDto(transaction),
+      ),
+      paginatedTransactions.meta.totalItems,
+      paginatedTransactions.meta.itemsPerPage,
+      paginatedTransactions.meta.currentPage,
+    );
+  }
 }
