@@ -110,42 +110,26 @@ export class TransactionsService {
     page = 1,
     userId: number,
   ): Promise<PaginatedResponseDto<Transaction>> {
-    console.log(
-      `[DEBUG] findAllWithPagination called with: take=${take}, page=${page}, userId=${userId}`,
-    );
-
     if (isNaN(take) || isNaN(page) || isNaN(userId)) {
-      console.log(
-        `[ERROR] Invalid parameters: take=${take}, page=${page}, userId=${userId}`,
-      );
       throw new BadRequestException('Invalid pagination parameters');
     }
 
     const skip = (page - 1) * take;
-    console.log(`[DEBUG] Calculated skip: ${skip}`);
 
-    try {
-      const [transactions, total] = await this.repository
-        .createQueryBuilder('transaction')
-        .leftJoinAndSelect('transaction.portfolio', 'portfolio')
-        .leftJoinAndSelect('transaction.transactionType', 'transactionType')
-        .leftJoinAndSelect('portfolio.asset', 'asset')
-        .leftJoinAndSelect('asset.category', 'category')
-        .leftJoinAndSelect('asset.assetType', 'assetType')
-        .leftJoinAndSelect('portfolio.platform', 'platform')
-        .where('portfolio.userId = :userId', { userId })
-        .take(take)
-        .skip(skip)
-        .getManyAndCount();
+    const [transactions, total] = await this.repository
+      .createQueryBuilder('transaction')
+      .leftJoinAndSelect('transaction.portfolio', 'portfolio')
+      .leftJoinAndSelect('transaction.transactionType', 'transactionType')
+      .leftJoinAndSelect('portfolio.asset', 'asset')
+      .leftJoinAndSelect('asset.category', 'category')
+      .leftJoinAndSelect('asset.assetType', 'assetType')
+      .leftJoinAndSelect('portfolio.platform', 'platform')
+      .where('portfolio.userId = :userId', { userId })
+      .take(take)
+      .skip(skip)
+      .getManyAndCount();
 
-      console.log(
-        `[DEBUG] Query executed successfully. Found ${transactions.length} transactions, total: ${total}`,
-      );
-      return new PaginatedResponseDto(transactions, total, take, page);
-    } catch (error) {
-      console.log(`[ERROR] Query failed:`, error);
-      throw error;
-    }
+    return new PaginatedResponseDto(transactions, total, take, page);
   }
 
   async findOne(id: number, userId: number): Promise<Transaction> {
