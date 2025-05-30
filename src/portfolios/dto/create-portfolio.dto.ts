@@ -11,12 +11,16 @@ import { Transform, Type } from 'class-transformer';
 export class CreatePortfolioDto {
   @ApiProperty({ description: 'Asset ID' })
   @IsNotEmpty({ message: 'Asset ID is required' })
+  @Transform(({ value }) => Number(value))
+  @Type(() => Number)
   @IsInt({ message: 'Asset ID must be an integer' })
   @IsPositive({ message: 'Asset ID must be a positive number' })
   assetId: number;
 
   @ApiProperty({ description: 'Platform ID' })
   @IsNotEmpty({ message: 'Platform ID is required' })
+  @Transform(({ value }) => Number(value))
+  @Type(() => Number)
   @IsInt({ message: 'Platform ID must be an integer' })
   @IsPositive({ message: 'Platform ID must be a positive number' })
   platformId: number;
