@@ -6,15 +6,18 @@ import {
   Patch,
   Param,
   Delete,
+  Query,
   HttpCode,
   HttpStatus,
+  BadRequestException,
 } from '@nestjs/common';
 import { TransactionTypesService } from './transaction-types.service';
 import { CreateTransactionTypeDto } from './dto/create-transaction-type.dto';
 import { UpdateTransactionTypeDto } from './dto/update-transaction-type.dto';
-import { ApiOperation, ApiParam, ApiResponse } from '@nestjs/swagger';
+import { ApiOperation, ApiParam, ApiQuery, ApiResponse } from '@nestjs/swagger';
 import { UserDecorator } from 'src/decorators/user.decorator';
 import { TransactionTypeResponseDto } from './dto/transaction-type-response.dto';
+import { PaginatedResponseDto } from 'src/dtos/paginated-response.dto';
 
 @Controller('transaction-types')
 export class TransactionTypesController {
@@ -61,6 +64,50 @@ export class TransactionTypesController {
     );
   }
 
+  @Get('pages')
+  @ApiOperation({ summary: 'Find all transaction types with pagination' })
+  @ApiQuery({
+    name: 'page',
+    required: false,
+    description: 'Page number',
+    type: Number,
+  })
+  @ApiQuery({
+    name: 'take',
+    required: false,
+    description: 'Items per page',
+    type: Number,
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Paginated list of transaction types',
+    type: PaginatedResponseDto,
+  })
+  async findAllWithPagination(
+    @UserDecorator() userId: number,
+    @Query('take') take?: string,
+    @Query('page') page?: string,
+  ): Promise<PaginatedResponseDto<TransactionTypeResponseDto>> {
+    const takeNumber = take && !isNaN(parseInt(take)) ? parseInt(take) : 10;
+    const pageNumber = page && !isNaN(parseInt(page)) ? parseInt(page) : 1;
+
+    const paginatedTransactionTypes =
+      await this.transactionTypesService.findAllWithPagination(
+        takeNumber,
+        pageNumber,
+        userId,
+      );
+
+    return new PaginatedResponseDto<TransactionTypeResponseDto>(
+      paginatedTransactionTypes.data.map(
+        (transactionType) => new TransactionTypeResponseDto(transactionType),
+      ),
+      paginatedTransactionTypes.meta.totalItems,
+      paginatedTransactionTypes.meta.itemsPerPage,
+      paginatedTransactionTypes.meta.currentPage,
+    );
+  }
+
   @Get(':id')
   @ApiOperation({ summary: 'Find one transaction type by id' })
   @ApiParam({ name: 'id', description: 'Transaction Type id' })
@@ -74,8 +121,12 @@ export class TransactionTypesController {
     @Param('id') id: string,
     @UserDecorator() userId: number,
   ): Promise<TransactionTypeResponseDto> {
+    const numericId = parseInt(id);
+    if (isNaN(numericId)) {
+      throw new BadRequestException('Invalid transaction type ID');
+    }
     return new TransactionTypeResponseDto(
-      await this.transactionTypesService.findOne(+id, userId),
+      await this.transactionTypesService.findOne(numericId, userId),
     );
   }
 
@@ -98,9 +149,13 @@ export class TransactionTypesController {
     @Body() updateTransactionTypeDto: UpdateTransactionTypeDto,
     @UserDecorator() userId: number,
   ): Promise<TransactionTypeResponseDto> {
+    const numericId = parseInt(id);
+    if (isNaN(numericId)) {
+      throw new BadRequestException('Invalid transaction type ID');
+    }
     return new TransactionTypeResponseDto(
       await this.transactionTypesService.update(
-        +id,
+        numericId,
         updateTransactionTypeDto,
         userId,
       ),
@@ -120,6 +175,10 @@ export class TransactionTypesController {
     @Param('id') id: string,
     @UserDecorator() userId: number,
   ): Promise<void> {
-    await this.transactionTypesService.remove(+id, userId);
+    const numericId = parseInt(id);
+    if (isNaN(numericId)) {
+      throw new BadRequestException('Invalid transaction type ID');
+    }
+    await this.transactionTypesService.remove(numericId, userId);
   }
 }

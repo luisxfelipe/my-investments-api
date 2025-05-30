@@ -91,8 +91,8 @@ export class TransactionsController {
     @Query('take') take?: string,
     @Query('page') page?: string,
   ): Promise<PaginatedResponseDto<TransactionResponseDto>> {
-    const takeNumber = take ? parseInt(take) : 10;
-    const pageNumber = page ? parseInt(page) : 1;
+    const takeNumber = take && !isNaN(parseInt(take)) ? parseInt(take) : 10;
+    const pageNumber = page && !isNaN(parseInt(page)) ? parseInt(page) : 1;
 
     const transactions = await this.transactionsService.findAllWithPagination(
       takeNumber,

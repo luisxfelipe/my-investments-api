@@ -11,6 +11,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { TransactionType } from './entities/transaction-type.entity';
 import { Repository } from 'typeorm';
 import { TransactionsService } from 'src/transactions/transactions.service';
+import { PaginatedResponseDto } from 'src/dtos/paginated-response.dto';
 
 @Injectable()
 export class TransactionTypesService {
@@ -48,6 +49,22 @@ export class TransactionTypesService {
     return this.repository.find({
       where: { userId },
     });
+  }
+
+  async findAllWithPagination(
+    take = 10,
+    page = 1,
+    userId: number,
+  ): Promise<PaginatedResponseDto<TransactionType>> {
+    const skip = (page - 1) * take;
+
+    const [transactionTypes, total] = await this.repository.findAndCount({
+      where: { userId },
+      take,
+      skip,
+    });
+
+    return new PaginatedResponseDto(transactionTypes, total, take, page);
   }
 
   async findOne(id: number, userId?: number): Promise<TransactionType> {
