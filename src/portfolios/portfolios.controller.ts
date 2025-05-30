@@ -159,4 +159,30 @@ export class PortfoliosController {
   ): Promise<void> {
     await this.portfoliosService.remove(+id, userId);
   }
+
+  /**
+   * Remove a meta de economia de um portfolio
+   */
+  @Delete(':id/saving-goal')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Remove a saving goal from a portfolio' })
+  @ApiParam({ name: 'id', description: 'Portfolio id' })
+  @ApiResponse({
+    status: 200,
+    description: 'The portfolio with saving goal removed',
+    type: PortfolioResponseDto,
+  })
+  @ApiResponse({ status: 404, description: 'Portfolio not found' })
+  @ApiResponse({
+    status: 400,
+    description: "Portfolio doesn't have a saving goal to remove",
+  })
+  async removeSavingGoal(
+    @Param('id') id: string,
+    @UserDecorator() userId: number,
+  ): Promise<PortfolioResponseDto> {
+    return new PortfolioResponseDto(
+      await this.portfoliosService.removeSavingGoal(+id, userId),
+    );
+  }
 }

@@ -620,4 +620,55 @@ export class PortfoliosService {
     // Atualizar apenas o preço médio
     await this.repository.update(portfolioId, { averagePrice });
   }
+
+  /**
+   * Remove a meta de economia de um portfolio específico
+   * Este endpoint existe especificamente para remover metas de economia,
+   * já que o endpoint de update não permite essa operação
+   *
+   * @param id ID do portfolio
+   * @param userId ID do usuário para verificar permissão
+   * @returns Portfolio atualizado sem a meta de economia
+   */
+  async removeSavingGoal(id: number, userId: number): Promise<Portfolio> {
+    // Verificar se o portfolio existe e pertence ao usuário
+    const portfolio = await this.findOne(id, userId);
+
+    // Verificar se o portfolio tem uma meta de economia
+    if (portfolio.savingGoalId === null) {
+      throw new BadRequestException(
+        `Portfolio with ID ${id} doesn't have a saving goal to remove`,
+      );
+    }
+
+    // Remover a associação com a meta de economia
+    portfolio.savingGoalId = null;
+    portfolio.savingGoal = null;
+
+    // Salvar e garantir que as alterações são persistidas
+    await this.repository.save(portfolio);
+
+    // Update explícito para garantir que o savingGoalId seja null
+    await this.repository.update(id, { savingGoalId: null });
+
+    // Buscar portfolio atualizado com relações
+    const updatedPortfolio = await this.repository.findOne({
+      where: { id, userId },
+      relations: [
+        'asset',
+        'asset.category',
+        'asset.assetType',
+        'platform',
+        'savingGoal', // Isso será null agora
+      ],
+    });
+
+    if (!updatedPortfolio) {
+      throw new NotFoundException(
+        `Portfolio with ID ${id} not found after removing saving goal`,
+      );
+    }
+
+    return updatedPortfolio;
+  }
 }
