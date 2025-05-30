@@ -137,6 +137,38 @@ export class PortfoliosService {
     return new PaginatedResponseDto(portfolios, total, take, page);
   }
 
+  // Busca todos os portfolios de uma plataforma específica com paginação
+  async findByPlatformWithPagination(
+    platformId: number,
+    take = 10,
+    page = 1,
+    userId: number,
+  ): Promise<PaginatedResponseDto<Portfolio>> {
+    // Verificar se a plataforma existe e pertence ao usuário
+    await this.platformsService.findOne(platformId, userId);
+
+    const skip = (page - 1) * take;
+
+    const [portfolios, total] = await this.repository.findAndCount({
+      where: {
+        userId,
+        platformId,
+      },
+      take,
+      skip,
+      relations: [
+        'asset',
+        'asset.category',
+        'asset.assetType',
+        'platform',
+        'savingGoal',
+      ],
+      order: { createdAt: 'DESC' },
+    });
+
+    return new PaginatedResponseDto(portfolios, total, take, page);
+  }
+
   /**
    * Busca um portfolio específico com estratégia inteligente para valores de saldo e preço médio
    * @param id ID do portfolio a ser buscado
@@ -185,14 +217,7 @@ export class PortfoliosService {
     return portfolio;
   }
 
-  /**
-   * Atualiza um portfolio específico
-   *
-   * @param id ID do portfolio a ser atualizado
-   * @param updatePortfolioDto Dados para atualização
-   * @param userId ID do usuário para verificar permissão
-   * @returns Portfolio atualizado com relações
-   */
+  // Atualiza um portfolio específico
   async update(
     id: number,
     updatePortfolioDto: UpdatePortfolioDto,
@@ -282,9 +307,7 @@ export class PortfoliosService {
     await this.repository.softDelete(id);
   }
 
-  /**
-   * Conta quantos portfolios estão usando um ativo específico
-   */
+  // Conta quantos portfolios estão usando um ativo específico
   async countByAssetId(assetId: number, userId: number): Promise<number> {
     return this.repository.count({
       where: { assetId, userId },
@@ -625,10 +648,6 @@ export class PortfoliosService {
    * Remove a meta de economia de um portfolio específico
    * Este endpoint existe especificamente para remover metas de economia,
    * já que o endpoint de update não permite essa operação
-   *
-   * @param id ID do portfolio
-   * @param userId ID do usuário para verificar permissão
-   * @returns Portfolio atualizado sem a meta de economia
    */
   async removeSavingGoal(id: number, userId: number): Promise<Portfolio> {
     // Verificar se o portfolio existe e pertence ao usuário

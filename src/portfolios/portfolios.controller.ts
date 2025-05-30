@@ -185,4 +185,49 @@ export class PortfoliosController {
       await this.portfoliosService.removeSavingGoal(+id, userId),
     );
   }
+
+  @Get('platform/:platformId/pages')
+  @ApiOperation({ summary: 'Find portfolios by platform with pagination' })
+  @ApiParam({ name: 'platformId', description: 'Platform id' })
+  @ApiQuery({
+    name: 'take',
+    required: false,
+    description: 'Number of items per page',
+    example: 10,
+  })
+  @ApiQuery({
+    name: 'page',
+    required: false,
+    description: 'Page number',
+    example: 1,
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Paginated list of portfolios from the specified platform',
+    type: PaginatedPortfolioResponseDto,
+  })
+  @ApiResponse({ status: 404, description: 'Platform not found' })
+  async findByPlatformWithPagination(
+    @Param('platformId') platformId: string,
+    @Query('take', new ParseIntPipe({ optional: true })) take = 10,
+    @Query('page', new ParseIntPipe({ optional: true })) page = 1,
+    @UserDecorator() userId: number,
+  ): Promise<PaginatedPortfolioResponseDto> {
+    const paginatedPortfolios =
+      await this.portfoliosService.findByPlatformWithPagination(
+        +platformId,
+        take,
+        page,
+        userId,
+      );
+
+    const data = paginatedPortfolios.data.map(
+      (portfolio) => new PortfolioResponseDto(portfolio),
+    );
+
+    return {
+      data,
+      meta: paginatedPortfolios.meta,
+    };
+  }
 }
