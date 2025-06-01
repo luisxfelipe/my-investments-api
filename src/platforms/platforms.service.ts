@@ -220,7 +220,8 @@ export class PlatformsService {
 
       // Buscar preço atual
       const currentQuote = quotesMap.get(assetId);
-      const currentPrice = Number(currentQuote?.price || 0);
+      // Se não há cotação atual, usar o preço médio como fallback
+      const currentPrice = Number(currentQuote?.price || averagePrice);
 
       // Calcular valores
       const investedValue = quantity * averagePrice;
