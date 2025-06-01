@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { Type, Transform } from 'class-transformer';
+import { Type } from 'class-transformer';
 import {
   IsDate,
   IsInt,
@@ -26,28 +26,12 @@ export class UpdateTransactionDto {
   @IsOptional()
   @IsNumber({}, { message: 'Quantity must be a number' })
   @IsPositive({ message: 'Quantity must be a positive number' })
-  @Transform(({ value }: { value: string | number | undefined }) => {
-    if (value === undefined || value === null) return undefined;
-    const num = typeof value === 'string' ? parseFloat(value) : value;
-    if (isNaN(num) || num <= 0) {
-      throw new Error('Quantity must be a positive number');
-    }
-    return num;
-  })
   quantity?: number;
 
   @ApiProperty({ description: 'Unit price of the asset', required: false })
   @IsOptional()
   @IsNumber({}, { message: 'Unit price must be a number' })
   @IsPositive({ message: 'Unit price must be a positive number' })
-  @Transform(({ value }: { value: string | number | undefined }) => {
-    if (value === undefined || value === null) return undefined;
-    const num = typeof value === 'string' ? parseFloat(value) : value;
-    if (isNaN(num) || num <= 0) {
-      throw new Error('Unit price must be a positive number');
-    }
-    return num;
-  })
   unitPrice?: number;
 
   @ApiProperty({
@@ -57,14 +41,6 @@ export class UpdateTransactionDto {
   @IsOptional()
   @IsNumber({}, { message: 'Total value must be a number' })
   @IsPositive({ message: 'Total value must be a positive number' })
-  @Transform(({ value }: { value: string | number | undefined }) => {
-    if (value === undefined || value === null) return undefined;
-    const num = typeof value === 'string' ? parseFloat(value) : value;
-    if (isNaN(num) || num <= 0) {
-      throw new Error('Total value must be a positive number');
-    }
-    return num;
-  })
   totalValue?: number;
 
   @ApiProperty({ description: 'Transaction date', required: false, type: Date })
@@ -77,14 +53,6 @@ export class UpdateTransactionDto {
   @IsOptional()
   @IsNumber({}, { message: 'Fee must be a number' })
   @IsPositive({ message: 'Fee must be a positive number' })
-  @Transform(({ value }: { value: string | number | undefined }) => {
-    if (value === undefined || value === null) return undefined;
-    const num = typeof value === 'string' ? parseFloat(value) : value;
-    if (isNaN(num) || num < 0) {
-      throw new Error('Fee must be a non-negative number');
-    }
-    return num;
-  })
   fee?: number;
 
   @ApiProperty({

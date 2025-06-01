@@ -153,7 +153,6 @@ export class TransactionsService {
 
     return transaction;
   }
-
   async update(
     id: number,
     updateTransactionDto: UpdateTransactionDto,
