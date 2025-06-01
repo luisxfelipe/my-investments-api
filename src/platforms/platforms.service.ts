@@ -204,6 +204,7 @@ export class PlatformsService {
     // Calcular métricas totais
     let totalAmountInvested = 0;
     let currentMarketValue = 0;
+    let totalRealizedValue = 0; // Novo: valor total das vendas
     let assetCount = 0;
 
     for (const [assetId, assetTransactionsList] of assetTransactions) {
@@ -215,27 +216,44 @@ export class PlatformsService {
         assetTransactionsList,
       );
 
-      // Se quantidade for 0 ou negativa, pular ativo
-      if (quantity <= 0) continue;
+      // Calcular valores investidos e realizados sempre, independente do saldo atual
+      let investedValue = 0;
+      let realizedValue = 0;
 
-      // Buscar preço atual
-      const currentQuote = quotesMap.get(assetId);
-      // Se não há cotação atual, usar o preço médio como fallback
-      const currentPrice = Number(currentQuote?.price || averagePrice);
+      // Processar cada transação para calcular valores investidos e realizados
+      for (const transaction of assetTransactionsList) {
+        const transactionValue = transaction.quantity * transaction.unitPrice;
 
-      // Calcular valores
-      const investedValue = quantity * averagePrice;
-      const currentValue = quantity * currentPrice;
+        if (transaction.transactionType.name.toLowerCase() === 'compra') {
+          investedValue += transactionValue;
+        } else if (transaction.transactionType.name.toLowerCase() === 'venda') {
+          realizedValue += transactionValue;
+        }
+      }
 
       totalAmountInvested += investedValue;
-      currentMarketValue += currentValue;
-      assetCount++;
+      totalRealizedValue += realizedValue;
+
+      // Para ativos com saldo atual > 0, calcular valor de mercado atual
+      if (quantity > 0) {
+        // Buscar preço atual
+        const currentQuote = quotesMap.get(assetId);
+        // Se não há cotação atual, usar o preço médio como fallback
+        const currentPrice = Number(currentQuote?.price || averagePrice);
+
+        // Calcular valor atual do saldo restante
+        const currentValue = quantity * currentPrice;
+        currentMarketValue += currentValue;
+
+        assetCount++;
+      }
     }
 
-    // Calcular rentabilidade total como porcentagem
+    // Calcular rentabilidade total: (valor atual + valor realizado - valor investido) / valor investido
+    const totalCurrentValue = currentMarketValue + totalRealizedValue;
     const totalReturnPercentage =
       totalAmountInvested > 0
-        ? ((currentMarketValue - totalAmountInvested) / totalAmountInvested) *
+        ? ((totalCurrentValue - totalAmountInvested) / totalAmountInvested) *
           100
         : 0;
 
