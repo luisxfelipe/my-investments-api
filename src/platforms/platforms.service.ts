@@ -14,6 +14,7 @@ import { PaginatedResponseDto } from 'src/dtos/paginated-response.dto';
 import { PaginationMetaDto } from 'src/dtos/pagination.dto';
 import { PaginatedPlatformAssetsResponseDto } from './dto/paginated-platform-assets-response.dto';
 import { PlatformDashboardResponseDto } from './dto/platform-dashboard-response.dto';
+import { PaginatedPlatformDashboardResponseDto } from './dto/paginated-platform-dashboard-response.dto';
 import { PlatformAssetResponseDto } from './dto/platform-asset-response.dto';
 import { AssetTypeResponseDto } from 'src/asset-types/dto/asset-type-response.dto';
 import { AssetType } from 'src/asset-types/entities/asset-type.entity';
@@ -358,5 +359,36 @@ export class PlatformsService {
     const meta = new PaginationMetaDto(take, total, page, totalPages);
 
     return new PaginatedPlatformAssetsResponseDto(meta, paginatedAssets);
+  }
+
+  /**
+   * Busca todas as plataformas com dados de dashboard e paginação
+   */
+  async findAllDashboardsWithPagination(
+    take = 10,
+    page = 1,
+    userId: number,
+  ): Promise<PaginatedPlatformDashboardResponseDto> {
+    // Primeiro buscar as plataformas com paginação
+    const paginatedPlatforms = await this.findAllWithPagination(
+      take,
+      page,
+      userId,
+    );
+
+    // Para cada plataforma, calcular o dashboard
+    const dashboards: PlatformDashboardResponseDto[] = [];
+
+    for (const platform of paginatedPlatforms.data) {
+      const dashboard = await this.getPlatformDashboard(platform.id, userId);
+      dashboards.push(dashboard);
+    }
+
+    return new PaginatedPlatformDashboardResponseDto(
+      dashboards,
+      paginatedPlatforms.meta.totalItems,
+      paginatedPlatforms.meta.itemsPerPage,
+      paginatedPlatforms.meta.currentPage,
+    );
   }
 }

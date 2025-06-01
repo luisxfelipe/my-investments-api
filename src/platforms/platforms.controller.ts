@@ -26,6 +26,7 @@ import { PaginatedResponseDto } from 'src/dtos/paginated-response.dto';
 import { PaginatedPlatformResponseDto } from './dto/paginated-platform-response.dto';
 import { PaginatedPlatformAssetsResponseDto } from './dto/paginated-platform-assets-response.dto';
 import { PlatformDashboardResponseDto } from './dto/platform-dashboard-response.dto';
+import { PaginatedPlatformDashboardResponseDto } from './dto/paginated-platform-dashboard-response.dto';
 
 @ApiTags('platforms')
 @Controller('platforms')
@@ -153,6 +154,7 @@ export class PlatformsController {
       await this.platformsService.update(+id, updatePlatformDto, userId),
     );
   }
+
   @Delete(':id')
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({ summary: 'Remove a platform by id (soft delete)' })
@@ -220,6 +222,42 @@ export class PlatformsController {
       userId,
       takeNumber,
       pageNumber,
+    );
+  }
+
+  @Get('dashboards/pages')
+  @ApiOperation({
+    summary: 'Find all platforms with dashboard data and pagination',
+  })
+  @ApiQuery({
+    name: 'page',
+    required: false,
+    description: 'Page number',
+    type: Number,
+  })
+  @ApiQuery({
+    name: 'take',
+    required: false,
+    description: 'Items per page',
+    type: Number,
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Paginated list of platform dashboards',
+    type: PaginatedPlatformDashboardResponseDto,
+  })
+  async findAllDashboardsWithPagination(
+    @UserDecorator() userId: number,
+    @Query('take') take: string = '10',
+    @Query('page') page: string = '1',
+  ): Promise<PaginatedPlatformDashboardResponseDto> {
+    const takeNumber = parseInt(take);
+    const pageNumber = parseInt(page);
+
+    return await this.platformsService.findAllDashboardsWithPagination(
+      takeNumber,
+      pageNumber,
+      userId,
     );
   }
 }
