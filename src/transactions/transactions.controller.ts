@@ -245,4 +245,54 @@ export class TransactionsController {
       paginatedTransactions.meta.currentPage,
     );
   }
+
+  /**
+   * Busca todas as transações de um portfolio específico com paginação
+   */
+  @Get('portfolio/:portfolioId/pages')
+  @ApiOperation({
+    summary: 'Find all transactions from a specific portfolio with pagination',
+  })
+  @ApiParam({ name: 'portfolioId', description: 'Portfolio id' })
+  @ApiQuery({
+    name: 'take',
+    required: false,
+    description: 'Number of items per page',
+    example: 10,
+  })
+  @ApiQuery({
+    name: 'page',
+    required: false,
+    description: 'Page number',
+    example: 1,
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Paginated list of transactions from the portfolio',
+    type: PaginatedTransactionResponseDto,
+  })
+  @ApiResponse({ status: 404, description: 'Portfolio not found' })
+  async findByPortfolioWithPagination(
+    @Param('portfolioId') portfolioId: string,
+    @UserDecorator() userId: number,
+    @Query('take') take?: number,
+    @Query('page') page?: number,
+  ): Promise<PaginatedResponseDto<TransactionResponseDto>> {
+    const paginatedTransactions =
+      await this.transactionsService.findAllByPortfolioIdWithPagination(
+        +portfolioId,
+        userId,
+        take,
+        page,
+      );
+
+    return new PaginatedResponseDto<TransactionResponseDto>(
+      paginatedTransactions.data.map(
+        (transaction) => new TransactionResponseDto(transaction),
+      ),
+      paginatedTransactions.meta.totalItems,
+      paginatedTransactions.meta.itemsPerPage,
+      paginatedTransactions.meta.currentPage,
+    );
+  }
 }

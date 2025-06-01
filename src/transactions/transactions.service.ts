@@ -261,6 +261,32 @@ export class TransactionsService {
     return queryBuilder.getMany();
   }
 
+  async findAllByPortfolioIdWithPagination(
+    portfolioId: number,
+    userId: number,
+    take = 10,
+    page = 1,
+  ): Promise<PaginatedResponseDto<Transaction>> {
+    const skip = (page - 1) * take;
+
+    const [transactions, total] = await this.repository
+      .createQueryBuilder('transaction')
+      .leftJoinAndSelect('transaction.portfolio', 'portfolio')
+      .leftJoinAndSelect('transaction.transactionType', 'transactionType')
+      .leftJoinAndSelect('portfolio.asset', 'asset')
+      .leftJoinAndSelect('asset.category', 'category')
+      .leftJoinAndSelect('asset.assetType', 'assetType')
+      .leftJoinAndSelect('portfolio.platform', 'platform')
+      .where('transaction.portfolioId = :portfolioId', { portfolioId })
+      .andWhere('portfolio.userId = :userId', { userId })
+      .take(take)
+      .skip(skip)
+      .orderBy('transaction.createdAt', 'DESC')
+      .getManyAndCount();
+
+    return new PaginatedResponseDto(transactions, total, take, page);
+  }
+
   async remove(id: number, userId: number): Promise<void> {
     // Verifica se a transação existe e pertence ao usuário
     const transaction = await this.findOne(id, userId);
