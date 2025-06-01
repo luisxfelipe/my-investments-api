@@ -44,11 +44,11 @@ export class TransactionResponseDto {
     this.id = transaction.id;
     this.portfolioId = transaction.portfolioId;
     this.transactionTypeId = transaction.transactionTypeId;
-    this.quantity = transaction.quantity;
-    this.unitPrice = transaction.unitPrice;
-    this.totalValue = transaction.totalValue;
+    this.quantity = Number(transaction.quantity);
+    this.unitPrice = Number(transaction.unitPrice);
+    this.totalValue = Number(transaction.totalValue);
     this.transactionDate = transaction.transactionDate;
-    this.fee = transaction.fee;
+    this.fee = transaction.fee ? Number(transaction.fee) : transaction.fee;
     this.notes = transaction.notes;
 
     if (transaction.portfolio) {

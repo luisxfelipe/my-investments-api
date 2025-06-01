@@ -41,8 +41,8 @@ export class PortfolioResponseDto {
     this.assetId = portfolio.assetId;
     this.platformId = portfolio.platformId;
     this.savingGoalId = portfolio.savingGoalId;
-    this.currentBalance = portfolio.currentBalance;
-    this.averagePrice = portfolio.averagePrice;
+    this.currentBalance = Number(portfolio.currentBalance);
+    this.averagePrice = Number(portfolio.averagePrice);
 
     if (portfolio.asset) {
       this.asset = new AssetResponseDto(portfolio.asset);
