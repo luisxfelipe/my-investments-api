@@ -48,6 +48,12 @@ export class TransactionsService {
       createTransactionDto.transactionReasonId,
     );
 
+    // ✅ VALIDAÇÃO DE DATA: Verificar se a data não é anterior à última transação
+    await this.validateTransactionDate(
+      createTransactionDto.portfolioId,
+      createTransactionDto.transactionDate,
+    );
+
     // ✅ VALIDAÇÃO SEGURA: Verificar saldo para vendas (SAÍDA)
     if (TransactionTypeHelper.isSaida(transactionReason.transactionTypeId)) {
       await this.portfoliosService.validateSaleTransaction(
@@ -203,6 +209,15 @@ export class TransactionsService {
       );
     }
 
+    // ✅ VALIDAÇÃO DE DATA: Verificar se a nova data não é anterior à última transação
+    if (updateTransactionDto.transactionDate) {
+      await this.validateTransactionDate(
+        transaction.portfolioId,
+        updateTransactionDto.transactionDate,
+        id, // Excluir a transação atual da validação
+      );
+    }
+
     // ✅ VALIDAÇÃO SEGURA: Verificar saldo para vendas
     const isChangingToSale =
       updateTransactionDto.transactionTypeId &&
@@ -350,6 +365,41 @@ export class TransactionsService {
     return this.repository.count({
       where: { transactionTypeId },
     });
+  }
+
+  /**
+   * Valida se a data da transação não é anterior à última transação do portfólio
+   */
+  async validateTransactionDate(
+    portfolioId: number,
+    transactionDate: Date,
+    excludeTransactionId?: number,
+  ): Promise<void> {
+    const queryBuilder = this.repository
+      .createQueryBuilder('transaction')
+      .where('transaction.portfolioId = :portfolioId', { portfolioId })
+      .orderBy('transaction.transactionDate', 'DESC')
+      .limit(1);
+
+    // Excluir transação atual em caso de update
+    if (excludeTransactionId) {
+      queryBuilder.andWhere('transaction.id != :excludeTransactionId', {
+        excludeTransactionId,
+      });
+    }
+
+    const lastTransaction = await queryBuilder.getOne();
+
+    if (lastTransaction && transactionDate < lastTransaction.transactionDate) {
+      const lastDateFormatted = lastTransaction.transactionDate
+        .toISOString()
+        .split('T')[0];
+      const newDateFormatted = transactionDate.toISOString().split('T')[0];
+
+      throw new BadRequestException(
+        `Transaction date (${newDateFormatted}) cannot be earlier than the last transaction date (${lastDateFormatted})`,
+      );
+    }
   }
 
   /**
@@ -608,6 +658,10 @@ export class TransactionsService {
         `Insufficient balance in source portfolio. Available: ${availableBalance}, Requested: ${quantity}`,
       );
     }
+
+    // ✅ VALIDAÇÃO DE DATA: Verificar se a data não é anterior à última transação em ambos os portfólios
+    await this.validateTransactionDate(sourcePortfolioId, transactionDate);
+    await this.validateTransactionDate(targetPortfolioId, transactionDate);
 
     // Obtém as razões de transação para transferência enviada e recebida
     const sendReasonPromise = this.transactionReasonsService.findByReason(
