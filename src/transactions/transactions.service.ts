@@ -173,13 +173,8 @@ export class TransactionsService {
     // Verifica se a transação existe e pertence ao usuário
     const transaction = await this.findOne(id, userId);
 
-    // Verifica se o portfólio existe e pertence ao usuário, se foi fornecido
-    if (updateTransactionDto.portfolioId) {
-      await this.portfoliosService.findOne(
-        updateTransactionDto.portfolioId,
-        userId,
-      );
-    }
+    // ✅ VALIDAÇÃO SEGURA: Verificar se o portfolio da transação ainda existe e pertence ao usuário
+    await this.portfoliosService.findOne(transaction.portfolioId, userId);
 
     // Verifica se o tipo de transação existe e pertence ao usuário, se foi fornecido
     if (updateTransactionDto.transactionTypeId) {
@@ -195,8 +190,7 @@ export class TransactionsService {
     const isChangingQuantity = updateTransactionDto.quantity !== undefined;
 
     if (isChangingToSale || (isAlreadySale && isChangingQuantity)) {
-      const portfolioId =
-        updateTransactionDto.portfolioId || transaction.portfolioId;
+      const portfolioId = transaction.portfolioId;
 
       // Nova quantidade da transação
       const newTransactionQuantity =

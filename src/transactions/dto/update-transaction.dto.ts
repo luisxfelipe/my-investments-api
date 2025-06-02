@@ -11,12 +11,6 @@ import {
 } from 'class-validator';
 
 export class UpdateTransactionDto {
-  @ApiProperty({ description: 'Portfolio ID', required: false })
-  @IsOptional()
-  @IsInt({ message: 'Portfolio ID must be an integer' })
-  @IsPositive({ message: 'Portfolio ID must be a positive number' })
-  portfolioId?: number;
-
   @ApiProperty({ description: 'Transaction Type ID', required: false })
   @IsOptional()
   @IsInt({ message: 'Transaction Type ID must be an integer' })
