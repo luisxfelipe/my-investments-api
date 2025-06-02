@@ -346,4 +346,196 @@ export class TransactionsService {
       where: { transactionTypeId },
     });
   }
+
+  /**
+   * Registra um depósito de moeda em um portfolio
+   * @param portfolioId ID do portfolio de moeda
+   * @param amount Valor do depósito
+   * @param date Data da transação
+   * @param userId ID do usuário
+   * @param notes Observações (opcional)
+   * @returns Transaction criada
+   */
+  async createDeposit(
+    portfolioId: number,
+    amount: number,
+    date: Date,
+    userId: number,
+    notes?: string,
+  ): Promise<Transaction> {
+    // Encontra o motivo de transação para depósito
+    const depositReason =
+      await this.transactionReasonsService.findByReason('Depósito');
+
+    // Cria a transação de depósito
+    return this.create(
+      {
+        portfolioId,
+        transactionTypeId: 1, // ENTRADA
+        transactionReasonId: depositReason.id,
+        quantity: amount,
+        unitPrice: 1, // Para moeda, sempre 1
+        transactionDate: date,
+        notes: notes || 'Depósito',
+        fee: 0,
+      },
+      userId,
+    );
+  }
+
+  /**
+   * Registra um saque de moeda de um portfolio
+   * @param portfolioId ID do portfolio de moeda
+   * @param amount Valor do saque
+   * @param date Data da transação
+   * @param userId ID do usuário
+   * @param notes Observações (opcional)
+   * @returns Transaction criada
+   */
+  async createWithdrawal(
+    portfolioId: number,
+    amount: number,
+    date: Date,
+    userId: number,
+    notes?: string,
+  ): Promise<Transaction> {
+    // Encontra o motivo de transação para saque
+    const withdrawalReason =
+      await this.transactionReasonsService.findByReason('Saque');
+
+    // Cria a transação de saque
+    return this.create(
+      {
+        portfolioId,
+        transactionTypeId: 2, // SAÍDA
+        transactionReasonId: withdrawalReason.id,
+        quantity: amount,
+        unitPrice: 1, // Para moeda, sempre 1
+        transactionDate: date,
+        notes: notes || 'Saque',
+        fee: 0,
+      },
+      userId,
+    );
+  }
+
+  /**
+   * Registra uma operação completa de compra, movimentando o dinheiro e o ativo
+   * @param moneyPortfolioId ID do portfolio de moeda
+   * @param assetPortfolioId ID do portfolio do ativo
+   * @param quantity Quantidade do ativo
+   * @param unitPrice Preço unitário do ativo
+   * @param date Data da transação
+   * @param userId ID do usuário
+   * @param fee Taxa (opcional)
+   * @param notes Observações (opcional)
+   * @returns Array com as duas transações criadas [moeda, ativo]
+   */
+  async createBuyOperation(
+    moneyPortfolioId: number,
+    assetPortfolioId: number,
+    quantity: number,
+    unitPrice: number,
+    date: Date,
+    userId: number,
+    fee: number = 0,
+    notes?: string,
+  ): Promise<Transaction[]> {
+    // Encontra o motivo de transação para compra
+    const buyReason =
+      await this.transactionReasonsService.findByReason('Compra');
+    const totalAmount = quantity * unitPrice + fee;
+
+    // Cria a transação de saída de dinheiro
+    const moneyTransaction = await this.create(
+      {
+        portfolioId: moneyPortfolioId,
+        transactionTypeId: 2, // SAÍDA
+        transactionReasonId: buyReason.id,
+        quantity: totalAmount,
+        unitPrice: 1, // Para moeda, sempre 1
+        transactionDate: date,
+        notes: notes || 'Compra',
+        fee: 0, // O fee já está no total
+      },
+      userId,
+    );
+
+    // Cria a transação de entrada do ativo
+    const assetTransaction = await this.create(
+      {
+        portfolioId: assetPortfolioId,
+        transactionTypeId: 1, // ENTRADA
+        transactionReasonId: buyReason.id,
+        quantity: quantity,
+        unitPrice: unitPrice,
+        transactionDate: date,
+        notes: notes || 'Compra',
+        fee: fee,
+      },
+      userId,
+    );
+
+    return [moneyTransaction, assetTransaction];
+  }
+
+  /**
+   * Registra uma operação completa de venda, movimentando o ativo e o dinheiro
+   * @param assetPortfolioId ID do portfolio do ativo
+   * @param moneyPortfolioId ID do portfolio de moeda
+   * @param quantity Quantidade do ativo
+   * @param unitPrice Preço unitário do ativo
+   * @param date Data da transação
+   * @param userId ID do usuário
+   * @param fee Taxa (opcional)
+   * @param notes Observações (opcional)
+   * @returns Array com as duas transações criadas [ativo, moeda]
+   */
+  async createSellOperation(
+    assetPortfolioId: number,
+    moneyPortfolioId: number,
+    quantity: number,
+    unitPrice: number,
+    date: Date,
+    userId: number,
+    fee: number = 0,
+    notes?: string,
+  ): Promise<Transaction[]> {
+    // Encontra o motivo de transação para venda
+    const sellReason =
+      await this.transactionReasonsService.findByReason('Venda');
+    const totalAmount = quantity * unitPrice - fee;
+
+    // Cria a transação de saída do ativo
+    const assetTransaction = await this.create(
+      {
+        portfolioId: assetPortfolioId,
+        transactionTypeId: 2, // SAÍDA
+        transactionReasonId: sellReason.id,
+        quantity: quantity,
+        unitPrice: unitPrice,
+        transactionDate: date,
+        notes: notes || 'Venda',
+        fee: fee,
+      },
+      userId,
+    );
+
+    // Cria a transação de entrada de dinheiro
+    const moneyTransaction = await this.create(
+      {
+        portfolioId: moneyPortfolioId,
+        transactionTypeId: 1, // ENTRADA
+        transactionReasonId: sellReason.id,
+        quantity: totalAmount,
+        unitPrice: 1, // Para moeda, sempre 1
+        transactionDate: date,
+        notes: notes || 'Venda',
+        fee: 0, // O fee já foi descontado do total
+      },
+      userId,
+    );
+
+    return [assetTransaction, moneyTransaction];
+  }
 }

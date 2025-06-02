@@ -91,6 +91,24 @@ export class TransactionReasonsService {
     return transactionReason;
   }
 
+  /**
+   * Busca uma razão de transação pelo nome/motivo
+   * @param reason Nome da razão de transação (ex: "Compra", "Venda", "Depósito")
+   * @returns TransactionReason encontrado ou lança exception
+   */
+  async findByReason(reason: string): Promise<TransactionReason> {
+    const transactionReason = await this.repository.findOne({
+      where: { reason },
+      relations: ['transactionType'],
+    });
+
+    if (!transactionReason) {
+      throw new NotFoundException(`Transaction reason '${reason}' not found`);
+    }
+
+    return transactionReason;
+  }
+
   async update(
     id: number,
     updateTransactionReasonDto: UpdateTransactionReasonDto,

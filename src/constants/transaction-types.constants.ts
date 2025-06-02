@@ -14,16 +14,22 @@ export const TRANSACTION_TYPE_NAMES = {
 
 /**
  * Constantes semânticas para razões de transação
- * Baseadas nos IDs definidos na migração SeedTransactionReasonsData
+ * Baseadas nos IDs definidos na migração SeedTransactionReasonsData e AddCurrencyAssetType
  */
 export const TRANSACTION_REASON_IDS = {
   COMPRA: 1,
   VENDA: 2,
+  DEPOSITO: 3,
+  SAQUE: 4,
+  TRANSFERENCIA: 5,
 } as const;
 
 export const TRANSACTION_REASON_NAMES = {
   COMPRA: 'Compra',
   VENDA: 'Venda',
+  DEPOSITO: 'Depósito',
+  SAQUE: 'Saque',
+  TRANSFERENCIA: 'Transferência',
 } as const;
 
 /**
@@ -41,6 +47,12 @@ export const TransactionReasonHelper = {
     transactionReasonId === TRANSACTION_REASON_IDS.COMPRA,
   isVenda: (transactionReasonId: number) =>
     transactionReasonId === TRANSACTION_REASON_IDS.VENDA,
+  isDeposito: (transactionReasonId: number) =>
+    transactionReasonId === TRANSACTION_REASON_IDS.DEPOSITO,
+  isSaque: (transactionReasonId: number) =>
+    transactionReasonId === TRANSACTION_REASON_IDS.SAQUE,
+  isTransferencia: (transactionReasonId: number) =>
+    transactionReasonId === TRANSACTION_REASON_IDS.TRANSFERENCIA,
 } as const;
 
 export type TransactionTypeId =
