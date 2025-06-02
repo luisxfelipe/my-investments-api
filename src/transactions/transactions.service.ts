@@ -18,6 +18,7 @@ import { PaginatedResponseDto } from 'src/dtos/paginated-response.dto';
 import {
   TransactionTypeHelper,
   TRANSACTION_REASON_NAMES,
+  TRANSACTION_TYPE_IDS,
 } from 'src/constants/transaction-types.constants';
 import { CurrencyHelper } from 'src/constants/currency.helper';
 
@@ -425,14 +426,15 @@ export class TransactionsService {
     notes?: string,
   ): Promise<Transaction> {
     // Encontra o motivo de transação para depósito
-    const depositReason =
-      await this.transactionReasonsService.findByReason('Depósito');
+    const depositReason = await this.transactionReasonsService.findByReason(
+      TRANSACTION_REASON_NAMES.DEPOSITO,
+    );
 
     // Cria a transação de depósito
     return this.create(
       {
         portfolioId,
-        transactionTypeId: 1, // ENTRADA
+        transactionTypeId: TRANSACTION_TYPE_IDS.ENTRADA,
         transactionReasonId: depositReason.id,
         quantity: amount,
         unitPrice: 1, // Para moeda, sempre 1
@@ -461,14 +463,15 @@ export class TransactionsService {
     notes?: string,
   ): Promise<Transaction> {
     // Encontra o motivo de transação para saque
-    const withdrawalReason =
-      await this.transactionReasonsService.findByReason('Saque');
+    const withdrawalReason = await this.transactionReasonsService.findByReason(
+      TRANSACTION_REASON_NAMES.SAQUE,
+    );
 
     // Cria a transação de saque
     return this.create(
       {
         portfolioId,
-        transactionTypeId: 2, // SAÍDA
+        transactionTypeId: TRANSACTION_TYPE_IDS.SAIDA,
         transactionReasonId: withdrawalReason.id,
         quantity: amount,
         unitPrice: 1, // Para moeda, sempre 1
@@ -503,15 +506,16 @@ export class TransactionsService {
     notes?: string,
   ): Promise<Transaction[]> {
     // Encontra o motivo de transação para compra
-    const buyReason =
-      await this.transactionReasonsService.findByReason('Compra');
+    const buyReason = await this.transactionReasonsService.findByReason(
+      TRANSACTION_REASON_NAMES.COMPRA,
+    );
     const totalAmount = quantity * unitPrice + fee;
 
     // Cria a transação de saída de dinheiro
     const moneyTransaction = await this.create(
       {
         portfolioId: moneyPortfolioId,
-        transactionTypeId: 2, // SAÍDA
+        transactionTypeId: TRANSACTION_TYPE_IDS.SAIDA,
         transactionReasonId: buyReason.id,
         quantity: totalAmount,
         unitPrice: 1, // Para moeda, sempre 1
@@ -526,7 +530,7 @@ export class TransactionsService {
     const assetTransaction = await this.create(
       {
         portfolioId: assetPortfolioId,
-        transactionTypeId: 1, // ENTRADA
+        transactionTypeId: TRANSACTION_TYPE_IDS.ENTRADA,
         transactionReasonId: buyReason.id,
         quantity: quantity,
         unitPrice: unitPrice,
@@ -563,15 +567,16 @@ export class TransactionsService {
     notes?: string,
   ): Promise<Transaction[]> {
     // Encontra o motivo de transação para venda
-    const sellReason =
-      await this.transactionReasonsService.findByReason('Venda');
+    const sellReason = await this.transactionReasonsService.findByReason(
+      TRANSACTION_REASON_NAMES.VENDA,
+    );
     const totalAmount = quantity * unitPrice - fee;
 
     // Cria a transação de saída do ativo
     const assetTransaction = await this.create(
       {
         portfolioId: assetPortfolioId,
-        transactionTypeId: 2, // SAÍDA
+        transactionTypeId: TRANSACTION_TYPE_IDS.SAIDA,
         transactionReasonId: sellReason.id,
         quantity: quantity,
         unitPrice: unitPrice,
@@ -586,7 +591,7 @@ export class TransactionsService {
     const moneyTransaction = await this.create(
       {
         portfolioId: moneyPortfolioId,
-        transactionTypeId: 1, // ENTRADA
+        transactionTypeId: TRANSACTION_TYPE_IDS.ENTRADA,
         transactionReasonId: sellReason.id,
         quantity: totalAmount,
         unitPrice: 1, // Para moeda, sempre 1

@@ -21,9 +21,8 @@ export const TRANSACTION_REASON_IDS = {
   VENDA: 2,
   DEPOSITO: 3,
   SAQUE: 4,
-  TRANSFERENCIA: 5,
-  TRANSFERENCIA_ENVIADA: 6,
-  TRANSFERENCIA_RECEBIDA: 7,
+  TRANSFERENCIA_ENVIADA: 5,
+  TRANSFERENCIA_RECEBIDA: 6,
 } as const;
 
 export const TRANSACTION_REASON_NAMES = {
@@ -31,7 +30,6 @@ export const TRANSACTION_REASON_NAMES = {
   VENDA: 'Venda',
   DEPOSITO: 'Depósito',
   SAQUE: 'Saque',
-  TRANSFERENCIA: 'Transferência',
   TRANSFERENCIA_ENVIADA: 'Transferência Enviada',
   TRANSFERENCIA_RECEBIDA: 'Transferência Recebida',
 } as const;
@@ -55,14 +53,11 @@ export const TransactionReasonHelper = {
     transactionReasonId === TRANSACTION_REASON_IDS.DEPOSITO,
   isSaque: (transactionReasonId: number) =>
     transactionReasonId === TRANSACTION_REASON_IDS.SAQUE,
-  isTransferencia: (transactionReasonId: number) =>
-    transactionReasonId === TRANSACTION_REASON_IDS.TRANSFERENCIA,
   isTransferenciaEnviada: (transactionReasonId: number) =>
     transactionReasonId === TRANSACTION_REASON_IDS.TRANSFERENCIA_ENVIADA,
   isTransferenciaRecebida: (transactionReasonId: number) =>
     transactionReasonId === TRANSACTION_REASON_IDS.TRANSFERENCIA_RECEBIDA,
   isAnyTransfer: (transactionReasonId: number) =>
-    transactionReasonId === TRANSACTION_REASON_IDS.TRANSFERENCIA ||
     transactionReasonId === TRANSACTION_REASON_IDS.TRANSFERENCIA_ENVIADA ||
     transactionReasonId === TRANSACTION_REASON_IDS.TRANSFERENCIA_RECEBIDA,
 } as const;
