@@ -2,9 +2,9 @@ import { ApiProperty } from '@nestjs/swagger';
 import { IsOptional, IsString, MaxLength } from 'class-validator';
 
 export class UpdateTransactionTypeDto {
-  @ApiProperty({ description: 'Name of the transaction type', required: false })
+  @ApiProperty({ description: 'Type of the transaction', required: false })
   @IsOptional()
-  @IsString({ message: 'Name must be a string' })
-  @MaxLength(50, { message: 'Name must be at most 50 characters long' })
-  name?: string;
+  @IsString({ message: 'Type must be a string' })
+  @MaxLength(50, { message: 'Type must be at most 50 characters long' })
+  type?: string;
 }

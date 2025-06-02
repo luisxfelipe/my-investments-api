@@ -8,11 +8,13 @@ import {
 import { CreateTransactionDto } from './dto/create-transaction.dto';
 import { UpdateTransactionDto } from './dto/update-transaction.dto';
 import { Repository } from 'typeorm';
+import { TransactionReasonsService } from 'src/transaction-reasons/transaction-reasons.service';
 import { TransactionTypesService } from 'src/transaction-types/transaction-types.service';
 import { PortfoliosService } from 'src/portfolios/portfolios.service';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Transaction } from './entities/transaction.entity';
 import { PaginatedResponseDto } from 'src/dtos/paginated-response.dto';
+import { TransactionTypeHelper } from 'src/constants/transaction-types.constants';
 
 @Injectable()
 export class TransactionsService {
@@ -21,6 +23,8 @@ export class TransactionsService {
     private readonly repository: Repository<Transaction>,
     @Inject(forwardRef(() => PortfoliosService))
     private readonly portfoliosService: PortfoliosService,
+    private readonly transactionReasonsService: TransactionReasonsService,
+    @Inject(forwardRef(() => TransactionTypesService))
     private readonly transactionTypesService: TransactionTypesService,
   ) {}
 
@@ -34,14 +38,13 @@ export class TransactionsService {
       userId,
     );
 
-    // Verifica se o tipo de transação existe e pertence ao usuário
-    await this.transactionTypesService.findOne(
-      createTransactionDto.transactionTypeId,
-      userId,
+    // Verifica se a razão de transação existe
+    const transactionReason = await this.transactionReasonsService.findOne(
+      createTransactionDto.transactionReasonId,
     );
 
-    // ✅ VALIDAÇÃO SEGURA: Verificar saldo para vendas (ID 2 = VENDA)
-    if (createTransactionDto.transactionTypeId === 2) {
+    // ✅ VALIDAÇÃO SEGURA: Verificar saldo para vendas (SAÍDA)
+    if (TransactionTypeHelper.isSaida(transactionReason.transactionTypeId)) {
       await this.portfoliosService.validateSaleTransaction(
         createTransactionDto.portfolioId,
         createTransactionDto.quantity,
@@ -69,6 +72,7 @@ export class TransactionsService {
       .createQueryBuilder('transaction')
       .leftJoinAndSelect('transaction.portfolio', 'portfolio')
       .leftJoinAndSelect('transaction.transactionType', 'transactionType')
+      .leftJoinAndSelect('transaction.transactionReason', 'transactionReason')
       .where('portfolio.userId = :userId', { userId })
       .getMany();
   }
@@ -81,6 +85,7 @@ export class TransactionsService {
       .createQueryBuilder('transaction')
       .leftJoinAndSelect('transaction.portfolio', 'portfolio')
       .leftJoinAndSelect('transaction.transactionType', 'transactionType')
+      .leftJoinAndSelect('transaction.transactionReason', 'transactionReason')
       .leftJoinAndSelect('portfolio.asset', 'asset')
       .leftJoinAndSelect('asset.category', 'category')
       .leftJoinAndSelect('asset.assetType', 'assetType')
@@ -101,6 +106,7 @@ export class TransactionsService {
       .createQueryBuilder('transaction')
       .leftJoinAndSelect('transaction.portfolio', 'portfolio')
       .leftJoinAndSelect('transaction.transactionType', 'transactionType')
+      .leftJoinAndSelect('transaction.transactionReason', 'transactionReason')
       .leftJoinAndSelect('transaction.asset', 'asset')
       .where('asset.platformId = :platformId', { platformId })
       .andWhere('portfolio.userId = :userId', { userId })
@@ -125,6 +131,7 @@ export class TransactionsService {
       .createQueryBuilder('transaction')
       .leftJoinAndSelect('transaction.portfolio', 'portfolio')
       .leftJoinAndSelect('transaction.transactionType', 'transactionType')
+      .leftJoinAndSelect('transaction.transactionReason', 'transactionReason')
       .leftJoinAndSelect('portfolio.asset', 'asset')
       .leftJoinAndSelect('asset.category', 'category')
       .leftJoinAndSelect('asset.assetType', 'assetType')
@@ -142,6 +149,7 @@ export class TransactionsService {
       .createQueryBuilder('transaction')
       .leftJoinAndSelect('transaction.portfolio', 'portfolio')
       .leftJoinAndSelect('transaction.transactionType', 'transactionType')
+      .leftJoinAndSelect('transaction.transactionReason', 'transactionReason')
       .leftJoinAndSelect('portfolio.asset', 'asset')
       .leftJoinAndSelect('asset.category', 'category')
       .leftJoinAndSelect('asset.assetType', 'assetType')
@@ -176,17 +184,27 @@ export class TransactionsService {
     // ✅ VALIDAÇÃO SEGURA: Verificar se o portfolio da transação ainda existe e pertence ao usuário
     await this.portfoliosService.findOne(transaction.portfolioId, userId);
 
-    // Verifica se o tipo de transação existe e pertence ao usuário, se foi fornecido
+    // Verifica se o tipo de transação existe, se foi fornecido
     if (updateTransactionDto.transactionTypeId) {
       await this.transactionTypesService.findOne(
         updateTransactionDto.transactionTypeId,
-        userId,
+      );
+    }
+
+    // Verifica se a razão de transação existe, se foi fornecida
+    if (updateTransactionDto.transactionReasonId) {
+      await this.transactionReasonsService.findOne(
+        updateTransactionDto.transactionReasonId,
       );
     }
 
     // ✅ VALIDAÇÃO SEGURA: Verificar saldo para vendas
-    const isChangingToSale = updateTransactionDto.transactionTypeId === 2;
-    const isAlreadySale = transaction.transactionTypeId === 2;
+    const isChangingToSale =
+      updateTransactionDto.transactionTypeId &&
+      TransactionTypeHelper.isSaida(updateTransactionDto.transactionTypeId);
+    const isAlreadySale = TransactionTypeHelper.isSaida(
+      transaction.transactionTypeId,
+    );
     const isChangingQuantity = updateTransactionDto.quantity !== undefined;
 
     if (isChangingToSale || (isAlreadySale && isChangingQuantity)) {
@@ -266,6 +284,7 @@ export class TransactionsService {
       .createQueryBuilder('transaction')
       .leftJoinAndSelect('transaction.portfolio', 'portfolio')
       .leftJoinAndSelect('transaction.transactionType', 'transactionType')
+      .leftJoinAndSelect('transaction.transactionReason', 'transactionReason')
       .leftJoinAndSelect('portfolio.asset', 'asset')
       .leftJoinAndSelect('asset.category', 'category')
       .leftJoinAndSelect('asset.assetType', 'assetType')
@@ -291,6 +310,7 @@ export class TransactionsService {
       .createQueryBuilder('transaction')
       .leftJoinAndSelect('transaction.portfolio', 'portfolio')
       .leftJoinAndSelect('transaction.transactionType', 'transactionType')
+      .leftJoinAndSelect('transaction.transactionReason', 'transactionReason')
       .leftJoinAndSelect('portfolio.asset', 'asset')
       .leftJoinAndSelect('asset.category', 'category')
       .leftJoinAndSelect('asset.assetType', 'assetType')

@@ -23,6 +23,7 @@ import { AssetsService } from 'src/assets/assets.service';
 import { AssetQuotesService } from 'src/asset-quotes/asset-quotes.service';
 import { Transaction } from 'src/transactions/entities/transaction.entity';
 import { PortfoliosService } from 'src/portfolios/portfolios.service';
+import { TransactionTypeHelper } from 'src/constants/transaction-types.constants';
 
 @Injectable()
 export class PlatformsService {
@@ -224,9 +225,11 @@ export class PlatformsService {
       for (const transaction of assetTransactionsList) {
         const transactionValue = transaction.quantity * transaction.unitPrice;
 
-        if (transaction.transactionType.name.toLowerCase() === 'compra') {
+        if (TransactionTypeHelper.isEntrada(transaction.transactionTypeId)) {
           investedValue += transactionValue;
-        } else if (transaction.transactionType.name.toLowerCase() === 'venda') {
+        } else if (
+          TransactionTypeHelper.isSaida(transaction.transactionTypeId)
+        ) {
           realizedValue += transactionValue;
         }
       }

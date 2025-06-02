@@ -15,7 +15,6 @@ import { TransactionTypesService } from './transaction-types.service';
 import { CreateTransactionTypeDto } from './dto/create-transaction-type.dto';
 import { UpdateTransactionTypeDto } from './dto/update-transaction-type.dto';
 import { ApiOperation, ApiParam, ApiQuery, ApiResponse } from '@nestjs/swagger';
-import { UserDecorator } from 'src/decorators/user.decorator';
 import { TransactionTypeResponseDto } from './dto/transaction-type-response.dto';
 import { PaginatedResponseDto } from 'src/dtos/paginated-response.dto';
 
@@ -38,13 +37,9 @@ export class TransactionTypesController {
   })
   async create(
     @Body() createTransactionTypeDto: CreateTransactionTypeDto,
-    @UserDecorator() userId: number,
   ): Promise<TransactionTypeResponseDto> {
     return new TransactionTypeResponseDto(
-      await this.transactionTypesService.create(
-        createTransactionTypeDto,
-        userId,
-      ),
+      await this.transactionTypesService.create(createTransactionTypeDto),
     );
   }
 
@@ -55,10 +50,8 @@ export class TransactionTypesController {
     description: 'List of all transaction types',
     type: [TransactionTypeResponseDto],
   })
-  async findAll(
-    @UserDecorator() userId: number,
-  ): Promise<TransactionTypeResponseDto[]> {
-    const transactionTypes = await this.transactionTypesService.findAll(userId);
+  async findAll(): Promise<TransactionTypeResponseDto[]> {
+    const transactionTypes = await this.transactionTypesService.findAll();
     return transactionTypes.map(
       (transactionType) => new TransactionTypeResponseDto(transactionType),
     );
@@ -84,7 +77,6 @@ export class TransactionTypesController {
     type: PaginatedResponseDto,
   })
   async findAllWithPagination(
-    @UserDecorator() userId: number,
     @Query('take') take?: string,
     @Query('page') page?: string,
   ): Promise<PaginatedResponseDto<TransactionTypeResponseDto>> {
@@ -95,7 +87,6 @@ export class TransactionTypesController {
       await this.transactionTypesService.findAllWithPagination(
         takeNumber,
         pageNumber,
-        userId,
       );
 
     return new PaginatedResponseDto<TransactionTypeResponseDto>(
@@ -117,16 +108,13 @@ export class TransactionTypesController {
     type: TransactionTypeResponseDto,
   })
   @ApiResponse({ status: 404, description: 'Transaction Type not found' })
-  async findOne(
-    @Param('id') id: string,
-    @UserDecorator() userId: number,
-  ): Promise<TransactionTypeResponseDto> {
+  async findOne(@Param('id') id: string): Promise<TransactionTypeResponseDto> {
     const numericId = parseInt(id);
     if (isNaN(numericId)) {
       throw new BadRequestException('Invalid transaction type ID');
     }
     return new TransactionTypeResponseDto(
-      await this.transactionTypesService.findOne(numericId, userId),
+      await this.transactionTypesService.findOne(numericId),
     );
   }
 
@@ -147,7 +135,6 @@ export class TransactionTypesController {
   async update(
     @Param('id') id: string,
     @Body() updateTransactionTypeDto: UpdateTransactionTypeDto,
-    @UserDecorator() userId: number,
   ): Promise<TransactionTypeResponseDto> {
     const numericId = parseInt(id);
     if (isNaN(numericId)) {
@@ -157,7 +144,6 @@ export class TransactionTypesController {
       await this.transactionTypesService.update(
         numericId,
         updateTransactionTypeDto,
-        userId,
       ),
     );
   }
@@ -171,14 +157,11 @@ export class TransactionTypesController {
     description: 'Transaction Type has been marked as successfully removed',
   })
   @ApiResponse({ status: 404, description: 'Transaction Type not found' })
-  async remove(
-    @Param('id') id: string,
-    @UserDecorator() userId: number,
-  ): Promise<void> {
+  async remove(@Param('id') id: string): Promise<void> {
     const numericId = parseInt(id);
     if (isNaN(numericId)) {
       throw new BadRequestException('Invalid transaction type ID');
     }
-    await this.transactionTypesService.remove(numericId, userId);
+    await this.transactionTypesService.remove(numericId);
   }
 }

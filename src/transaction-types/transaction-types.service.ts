@@ -24,42 +24,33 @@ export class TransactionTypesService {
 
   async create(
     createTransactionTypeDto: CreateTransactionTypeDto,
-    userId: number,
   ): Promise<TransactionType> {
-    // Verifica se já existe um tipo de transação com o mesmo nome para o mesmo usuário
-    const existingTransactionType = await this.findOneByNameAndUserId(
-      createTransactionTypeDto.name,
-      userId,
+    // Verifica se já existe um tipo de transação com o mesmo tipo
+    const existingTransactionType = await this.findOneByType(
+      createTransactionTypeDto.type,
     );
 
     if (existingTransactionType) {
       throw new BadRequestException(
-        `There is already a transaction type with the name '${createTransactionTypeDto.name}'`,
+        `There is already a transaction type with the type '${createTransactionTypeDto.type}'`,
       );
     }
 
-    const transactionType = this.repository.create({
-      ...createTransactionTypeDto,
-      userId,
-    });
+    const transactionType = this.repository.create(createTransactionTypeDto);
     return this.repository.save(transactionType);
   }
 
-  async findAll(userId: number): Promise<TransactionType[]> {
-    return this.repository.find({
-      where: { userId },
-    });
+  async findAll(): Promise<TransactionType[]> {
+    return this.repository.find();
   }
 
   async findAllWithPagination(
     take = 10,
     page = 1,
-    userId: number,
   ): Promise<PaginatedResponseDto<TransactionType>> {
     const skip = (page - 1) * take;
 
     const [transactionTypes, total] = await this.repository.findAndCount({
-      where: { userId },
       take,
       skip,
     });
@@ -67,14 +58,9 @@ export class TransactionTypesService {
     return new PaginatedResponseDto(transactionTypes, total, take, page);
   }
 
-  async findOne(id: number, userId?: number): Promise<TransactionType> {
-    const whereCondition: { id: number; userId?: number } = { id };
-    if (userId !== undefined) {
-      whereCondition.userId = userId;
-    }
-
+  async findOne(id: number): Promise<TransactionType> {
     const transactionType = await this.repository.findOne({
-      where: whereCondition,
+      where: { id },
     });
 
     if (!transactionType) {
@@ -84,17 +70,13 @@ export class TransactionTypesService {
     return transactionType;
   }
 
-  async findOneByNameAndUserId(
-    name: string,
-    userId: number,
-  ): Promise<TransactionType | null> {
-    return this.repository.findOne({ where: { name, userId } });
+  async findOneByType(type: string): Promise<TransactionType | null> {
+    return this.repository.findOne({ where: { type } });
   }
 
   async update(
     id: number,
     updateTransactionTypeDto: UpdateTransactionTypeDto,
-    userId: number,
   ): Promise<TransactionType> {
     if (
       !updateTransactionTypeDto ||
@@ -103,22 +85,21 @@ export class TransactionTypesService {
       throw new BadRequestException(`No properties provided for update`);
     }
 
-    // Verifica se o tipo de transação existe e pertence ao usuário
-    const transactionType = await this.findOne(id, userId);
+    // Verifica se o tipo de transação existe
+    const transactionType = await this.findOne(id);
 
-    // Se estiver atualizando o nome, verifica se já existe outro tipo de transação com esse nome para o mesmo usuário
+    // Se estiver atualizando o tipo, verifica se já existe outro tipo de transação com esse tipo
     if (
-      updateTransactionTypeDto.name &&
-      updateTransactionTypeDto.name !== transactionType.name
+      updateTransactionTypeDto.type &&
+      updateTransactionTypeDto.type !== transactionType.type
     ) {
-      const existingTransactionType = await this.findOneByNameAndUserId(
-        updateTransactionTypeDto.name,
-        userId,
+      const existingTransactionType = await this.findOneByType(
+        updateTransactionTypeDto.type,
       );
 
       if (existingTransactionType && existingTransactionType.id !== id) {
         throw new BadRequestException(
-          `There is already a transaction type with the name '${updateTransactionTypeDto.name}'`,
+          `There is already a transaction type with the type '${updateTransactionTypeDto.type}'`,
         );
       }
     }
@@ -127,9 +108,9 @@ export class TransactionTypesService {
     return this.repository.save(transactionType);
   }
 
-  async remove(id: number, userId: number): Promise<void> {
-    // Verifica se o tipo de transação existe e pertence ao usuário
-    await this.findOne(id, userId);
+  async remove(id: number): Promise<void> {
+    // Verifica se o tipo de transação existe
+    await this.findOne(id);
 
     // Verifica se o tipo de transação está sendo usado em alguma transação
     const transactionsCount = await this.countByTransactionTypeId(id);

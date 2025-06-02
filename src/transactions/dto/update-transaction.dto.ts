@@ -17,6 +17,12 @@ export class UpdateTransactionDto {
   @IsPositive({ message: 'Transaction Type ID must be a positive number' })
   transactionTypeId?: number;
 
+  @ApiProperty({ description: 'Transaction Reason ID', required: false })
+  @IsOptional()
+  @IsInt({ message: 'Transaction Reason ID must be an integer' })
+  @IsPositive({ message: 'Transaction Reason ID must be a positive number' })
+  transactionReasonId?: number;
+
   @ApiProperty({ description: 'Quantity of the asset', required: false })
   @IsOptional()
   @IsNumber({}, { message: 'Quantity must be a number' })

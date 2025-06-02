@@ -17,6 +17,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { TransactionsService } from 'src/transactions/transactions.service';
 import { Transaction } from 'src/transactions/entities/transaction.entity';
 import { PaginatedResponseDto } from '../dtos/paginated-response.dto';
+import { TransactionTypeHelper } from 'src/constants/transaction-types.constants';
 
 @Injectable()
 export class PortfoliosService {
@@ -474,27 +475,23 @@ export class PortfoliosService {
   }
 
   /**
-   * Calcula a quantidade total baseada nas transações (compras - vendas)
+   * Calcula a quantidade total baseada nas transações (entradas - saídas)
    * Tipos suportados:
-   * - 1 = Compra (adiciona quantidade)
-   * - 2 = Venda (subtrai quantidade)
+   * - Entrada (ID 1) = Adiciona quantidade
+   * - Saída (ID 2) = Subtrai quantidade
    * - Outros IDs = Não afetam quantidade (ex: dividendos, rendimentos, etc.)
    */
   calculateTotalQuantity(transactions: Transaction[]): number {
     return transactions.reduce((total, transaction) => {
       let quantityMultiplier = 0;
 
-      switch (transaction.transactionTypeId) {
-        case 1: // Compra
-          quantityMultiplier = 1;
-          break;
-        case 2: // Venda
-          quantityMultiplier = -1;
-          break;
-        default:
-          // Todos os outros tipos (dividendos, rendimentos, etc.) não afetam quantidade
-          quantityMultiplier = 0;
-          break;
+      if (TransactionTypeHelper.isEntrada(transaction.transactionTypeId)) {
+        quantityMultiplier = 1;
+      } else if (TransactionTypeHelper.isSaida(transaction.transactionTypeId)) {
+        quantityMultiplier = -1;
+      } else {
+        // Todos os outros tipos (dividendos, rendimentos, etc.) não afetam quantidade
+        quantityMultiplier = 0;
       }
 
       return total + transaction.quantity * quantityMultiplier;
@@ -502,12 +499,12 @@ export class PortfoliosService {
   }
 
   /**
-   * Calcula o preço médio ponderado das transações de compra
+   * Calcula o preço médio ponderado das transações de entrada (compras)
    */
   calculateAveragePrice(transactions: Transaction[]): number {
-    // Filtrar apenas transações de compra (ID 1)
-    const buyTransactions = transactions.filter(
-      (t) => t.transactionTypeId === 1,
+    // Filtrar apenas transações de entrada (compras) usando verificação semântica
+    const buyTransactions = transactions.filter((t) =>
+      TransactionTypeHelper.isEntrada(t.transactionTypeId),
     );
 
     if (buyTransactions.length === 0) return 0;

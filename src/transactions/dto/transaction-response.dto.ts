@@ -1,6 +1,7 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { PortfolioResponseDto } from 'src/portfolios/dto/portfolio-response.dto';
 import { TransactionTypeResponseDto } from 'src/transaction-types/dto/transaction-type-response.dto';
+import { TransactionReasonResponseDto } from 'src/transaction-reasons/dto/transaction-reason-response.dto';
 import { Transaction } from '../entities/transaction.entity';
 
 export class TransactionResponseDto {
@@ -12,6 +13,9 @@ export class TransactionResponseDto {
 
   @ApiProperty({ description: 'Transaction Type ID' })
   transactionTypeId: number;
+
+  @ApiProperty({ description: 'Transaction Reason ID' })
+  transactionReasonId: number;
 
   @ApiProperty({ description: 'Quantity' })
   quantity: number;
@@ -40,10 +44,17 @@ export class TransactionResponseDto {
   })
   transactionType?: TransactionTypeResponseDto;
 
+  @ApiProperty({
+    description: 'Transaction Reason',
+    type: TransactionReasonResponseDto,
+  })
+  transactionReason?: TransactionReasonResponseDto;
+
   constructor(transaction: Transaction) {
     this.id = transaction.id;
     this.portfolioId = transaction.portfolioId;
     this.transactionTypeId = transaction.transactionTypeId;
+    this.transactionReasonId = transaction.transactionReasonId;
     this.quantity = Number(transaction.quantity);
     this.unitPrice = Number(transaction.unitPrice);
     this.totalValue = Number(transaction.totalValue);
@@ -58,6 +69,12 @@ export class TransactionResponseDto {
     if (transaction.transactionType) {
       this.transactionType = new TransactionTypeResponseDto(
         transaction.transactionType,
+      );
+    }
+
+    if (transaction.transactionReason) {
+      this.transactionReason = new TransactionReasonResponseDto(
+        transaction.transactionReason,
       );
     }
   }

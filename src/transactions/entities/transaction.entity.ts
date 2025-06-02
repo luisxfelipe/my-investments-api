@@ -1,5 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { Portfolio } from 'src/portfolios/entities/portfolio.entity';
+import { TransactionReason } from 'src/transaction-reasons/entities/transaction-reason.entity';
 import { TransactionType } from 'src/transaction-types/entities/transaction-type.entity';
 import {
   Column,
@@ -25,6 +26,10 @@ export class Transaction {
   @ApiProperty({ description: 'Transaction Type ID' })
   @Column({ name: 'transaction_type_id' })
   transactionTypeId: number;
+
+  @ApiProperty({ description: 'Transaction Reason ID' })
+  @Column({ name: 'transaction_reason_id' })
+  transactionReasonId: number;
 
   @ApiProperty({ description: 'Quantity' })
   @Column({ name: 'quantity', type: 'decimal', precision: 18, scale: 8 })
@@ -63,6 +68,10 @@ export class Transaction {
   @ManyToOne(() => TransactionType)
   @JoinColumn({ name: 'transaction_type_id' })
   transactionType: TransactionType;
+
+  @ManyToOne(() => TransactionReason)
+  @JoinColumn({ name: 'transaction_reason_id' })
+  transactionReason: TransactionReason;
 
   @CreateDateColumn({ name: 'created_at' })
   createdAt: Date;
