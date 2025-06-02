@@ -61,6 +61,13 @@ export class Transaction {
   @Column({ name: 'notes', type: 'text', nullable: true })
   notes?: string;
 
+  @ApiProperty({
+    description: 'Linked Transaction ID (for transfers)',
+    required: false,
+  })
+  @Column({ name: 'linked_transaction_id', nullable: true })
+  linkedTransactionId?: number;
+
   @ManyToOne(() => Portfolio)
   @JoinColumn({ name: 'portfolio_id' })
   portfolio: Portfolio;
@@ -72,6 +79,10 @@ export class Transaction {
   @ManyToOne(() => TransactionReason)
   @JoinColumn({ name: 'transaction_reason_id' })
   transactionReason: TransactionReason;
+
+  @ManyToOne(() => Transaction)
+  @JoinColumn({ name: 'linked_transaction_id' })
+  linkedTransaction?: Transaction;
 
   @CreateDateColumn({ name: 'created_at' })
   createdAt: Date;

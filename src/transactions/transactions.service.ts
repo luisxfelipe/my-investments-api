@@ -7,6 +7,7 @@ import {
 } from '@nestjs/common';
 import { CreateTransactionDto } from './dto/create-transaction.dto';
 import { UpdateTransactionDto } from './dto/update-transaction.dto';
+import { CreateTransferDto } from './dto/create-transfer.dto';
 import { Repository } from 'typeorm';
 import { TransactionReasonsService } from 'src/transaction-reasons/transaction-reasons.service';
 import { TransactionTypesService } from 'src/transaction-types/transaction-types.service';
@@ -14,7 +15,11 @@ import { PortfoliosService } from 'src/portfolios/portfolios.service';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Transaction } from './entities/transaction.entity';
 import { PaginatedResponseDto } from 'src/dtos/paginated-response.dto';
-import { TransactionTypeHelper } from 'src/constants/transaction-types.constants';
+import {
+  TransactionTypeHelper,
+  TRANSACTION_REASON_NAMES,
+} from 'src/constants/transaction-types.constants';
+import { CurrencyHelper } from 'src/constants/currency.helper';
 
 @Injectable()
 export class TransactionsService {
@@ -537,5 +542,140 @@ export class TransactionsService {
     );
 
     return [assetTransaction, moneyTransaction];
+  }
+
+  /**
+   * Cria uma transferência entre dois portfólios de moeda fiduciária
+   * Cria duas transações vinculadas: uma saída no portfólio origem e uma entrada no destino
+   * @param createTransferDto Dados da transferência
+   * @param userId ID do usuário logado
+   */
+  async createTransfer(
+    createTransferDto: CreateTransferDto,
+    userId: number,
+  ): Promise<{
+    sourceTransaction: Transaction;
+    targetTransaction: Transaction;
+  }> {
+    const {
+      sourcePortfolioId,
+      targetPortfolioId,
+      quantity,
+      transactionDate,
+      fee = 0,
+      notes,
+    } = createTransferDto;
+
+    // Valida se os portfólios existem e pertencem ao usuário
+    const sourcePortfolio = await this.portfoliosService.findOne(
+      sourcePortfolioId,
+      userId,
+    );
+    const targetPortfolio = await this.portfoliosService.findOne(
+      targetPortfolioId,
+      userId,
+    );
+
+    // Valida se ambos os portfólios são do tipo moeda
+    if (
+      !CurrencyHelper.isCurrencyPortfolio(sourcePortfolio.asset.assetTypeId)
+    ) {
+      throw new BadRequestException(
+        `Source portfolio (ID: ${sourcePortfolioId}) is not a currency portfolio`,
+      );
+    }
+
+    if (
+      !CurrencyHelper.isCurrencyPortfolio(targetPortfolio.asset.assetTypeId)
+    ) {
+      throw new BadRequestException(
+        `Target portfolio (ID: ${targetPortfolioId}) is not a currency portfolio`,
+      );
+    }
+
+    // Obtém as transações do portfólio de origem
+    const sourceTransactions = await this.findAllByPortfolioId(
+      sourcePortfolioId,
+      userId,
+    );
+
+    const availableBalance =
+      CurrencyHelper.calculateAvailableBalance(sourceTransactions);
+
+    // Verifica se há saldo suficiente para a transferência
+    if (availableBalance < quantity) {
+      throw new BadRequestException(
+        `Insufficient balance in source portfolio. Available: ${availableBalance}, Requested: ${quantity}`,
+      );
+    }
+
+    // Obtém as razões de transação para transferência enviada e recebida
+    const sendReasonPromise = this.transactionReasonsService.findByReason(
+      TRANSACTION_REASON_NAMES.TRANSFERENCIA_ENVIADA,
+    );
+    const receiveReasonPromise = this.transactionReasonsService.findByReason(
+      TRANSACTION_REASON_NAMES.TRANSFERENCIA_RECEBIDA,
+    );
+
+    const [sendReason, receiveReason] = await Promise.all([
+      sendReasonPromise,
+      receiveReasonPromise,
+    ]);
+
+    // Preço unitário para moedas é sempre 1
+    const unitPrice = CurrencyHelper.getDefaultUnitPrice();
+
+    // Cria a transação de saída (transferência enviada)
+    const sourceTransaction = this.repository.create({
+      portfolioId: sourcePortfolioId,
+      transactionTypeId: sendReason.transactionTypeId,
+      transactionReasonId: sendReason.id,
+      quantity,
+      unitPrice,
+      totalValue: quantity * unitPrice - fee,
+      transactionDate,
+      fee,
+      notes: notes
+        ? `${notes} - Transfer to portfolio #${targetPortfolioId}`
+        : `Transfer to portfolio #${targetPortfolioId}`,
+    });
+
+    // Salva a transação de origem
+    const savedSourceTransaction =
+      await this.repository.save(sourceTransaction);
+
+    // Cria a transação de entrada (transferência recebida)
+    const targetTransaction = this.repository.create({
+      portfolioId: targetPortfolioId,
+      transactionTypeId: receiveReason.transactionTypeId,
+      transactionReasonId: receiveReason.id,
+      quantity,
+      unitPrice,
+      totalValue: quantity * unitPrice,
+      transactionDate,
+      fee: 0, // A taxa é aplicada apenas na origem
+      notes: notes
+        ? `${notes} - Transfer from portfolio #${sourcePortfolioId}`
+        : `Transfer from portfolio #${sourcePortfolioId}`,
+      linkedTransactionId: savedSourceTransaction.id,
+    });
+
+    // Salva a transação de destino
+    const savedTargetTransaction =
+      await this.repository.save(targetTransaction);
+
+    // Atualiza a transação de origem com a referência para a transação de destino
+    savedSourceTransaction.linkedTransactionId = savedTargetTransaction.id;
+    await this.repository.save(savedSourceTransaction);
+
+    // Recalcula os saldos dos portfolios
+    await this.portfoliosService.recalculatePortfolioBalance(sourcePortfolioId);
+    await this.portfoliosService.recalculatePortfolioBalance(targetPortfolioId);
+
+    // Retorna as duas transações vinculadas
+    return {
+      sourceTransaction: savedSourceTransaction,
+      targetTransaction: savedTargetTransaction,
+    };
   }
 }

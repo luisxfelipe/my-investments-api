@@ -35,6 +35,12 @@ export class TransactionResponseDto {
   @ApiProperty({ description: 'Notes', required: false })
   notes?: string;
 
+  @ApiProperty({
+    description: 'Linked Transaction ID (for transfers)',
+    required: false,
+  })
+  linkedTransactionId?: number;
+
   @ApiProperty({ description: 'Portfolio', type: PortfolioResponseDto })
   portfolio?: PortfolioResponseDto;
 
@@ -61,6 +67,7 @@ export class TransactionResponseDto {
     this.transactionDate = transaction.transactionDate;
     this.fee = transaction.fee ? Number(transaction.fee) : transaction.fee;
     this.notes = transaction.notes;
+    this.linkedTransactionId = transaction.linkedTransactionId;
 
     if (transaction.portfolio) {
       this.portfolio = new PortfolioResponseDto(transaction.portfolio);

@@ -13,6 +13,7 @@ import {
 import { TransactionsService } from './transactions.service';
 import { CreateTransactionDto } from './dto/create-transaction.dto';
 import { UpdateTransactionDto } from './dto/update-transaction.dto';
+import { CreateTransferDto } from './dto/create-transfer.dto';
 import {
   ApiOperation,
   ApiParam,
@@ -21,6 +22,7 @@ import {
   ApiTags,
 } from '@nestjs/swagger';
 import { TransactionResponseDto } from './dto/transaction-response.dto';
+import { TransferResponseDto } from './dto/transfer-response.dto';
 import { PaginatedResponseDto } from 'src/dtos/paginated-response.dto';
 import { PaginatedTransactionResponseDto } from './dto/paginated-transaction-response.dto';
 import { UserDecorator } from 'src/decorators/user.decorator';
@@ -294,5 +296,35 @@ export class TransactionsController {
       paginatedTransactions.meta.itemsPerPage,
       paginatedTransactions.meta.currentPage,
     );
+  }
+
+  @Post('transfer')
+  @ApiOperation({ summary: 'Transfer value between currency portfolios' })
+  @ApiResponse({
+    status: 201,
+    description: 'The transfer was completed successfully',
+    type: TransferResponseDto,
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'Invalid data or insufficient balance',
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'Portfolio not found or does not belong to the user',
+  })
+  async transfer(
+    @Body() createTransferDto: CreateTransferDto,
+    @UserDecorator() userId: number,
+  ): Promise<TransferResponseDto> {
+    const result = await this.transactionsService.createTransfer(
+      createTransferDto,
+      userId,
+    );
+
+    return {
+      sourceTransaction: new TransactionResponseDto(result.sourceTransaction),
+      targetTransaction: new TransactionResponseDto(result.targetTransaction),
+    };
   }
 }
