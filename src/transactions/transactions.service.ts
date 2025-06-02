@@ -49,7 +49,12 @@ export class TransactionsService {
       );
     }
 
-    const transaction = this.repository.create(createTransactionDto);
+    const transaction = this.repository.create({
+      ...createTransactionDto,
+      totalValue:
+        createTransactionDto.quantity * createTransactionDto.unitPrice -
+        (createTransactionDto.fee || 0),
+    });
     const savedTransaction = await this.repository.save(transaction);
 
     // ✅ Recalcular saldo e preço médio do portfolio após a transação
@@ -227,7 +232,27 @@ export class TransactionsService {
       }
     }
 
-    this.repository.merge(transaction, updateTransactionDto);
+    // Calculate totalValue based on the final values
+    const finalQuantity =
+      updateTransactionDto.quantity !== undefined
+        ? updateTransactionDto.quantity
+        : transaction.quantity;
+    const finalUnitPrice =
+      updateTransactionDto.unitPrice !== undefined
+        ? updateTransactionDto.unitPrice
+        : transaction.unitPrice;
+    const finalFee =
+      updateTransactionDto.fee !== undefined
+        ? updateTransactionDto.fee
+        : transaction.fee;
+
+    const calculatedTotalValue =
+      finalQuantity * finalUnitPrice - (finalFee || 0);
+
+    this.repository.merge(transaction, {
+      ...updateTransactionDto,
+      totalValue: calculatedTotalValue,
+    });
     const updatedTransaction = await this.repository.save(transaction);
 
     // ✅ Recalcular saldo e preço médio do portfolio após a atualização

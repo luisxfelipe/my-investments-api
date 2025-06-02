@@ -34,15 +34,6 @@ export class UpdateTransactionDto {
   @IsPositive({ message: 'Unit price must be a positive number' })
   unitPrice?: number;
 
-  @ApiProperty({
-    description: 'Total value of the transaction',
-    required: false,
-  })
-  @IsOptional()
-  @IsNumber({}, { message: 'Total value must be a number' })
-  @IsPositive({ message: 'Total value must be a positive number' })
-  totalValue?: number;
-
   @ApiProperty({ description: 'Transaction date', required: false, type: Date })
   @IsOptional()
   @IsDate({ message: 'Transaction date must be a valid date' })
