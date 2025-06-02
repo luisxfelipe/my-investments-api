@@ -43,26 +43,6 @@ export class Portfolio {
   @Column({ name: 'saving_goal_id', nullable: true })
   savingGoalId: number | null;
 
-  @ApiProperty({ description: 'Current Balance' })
-  @Column({
-    name: 'current_balance',
-    type: 'decimal',
-    precision: 18,
-    scale: 8,
-    default: 0,
-  })
-  currentBalance: number;
-
-  @ApiProperty({ description: 'Average Price' })
-  @Column({
-    name: 'average_price',
-    type: 'decimal',
-    precision: 18,
-    scale: 8,
-    default: 0,
-  })
-  averagePrice: number;
-
   @ManyToOne(() => User)
   @JoinColumn({ name: 'user_id' })
   user: User;

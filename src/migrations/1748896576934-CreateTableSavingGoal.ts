@@ -5,11 +5,11 @@ import {
   TableForeignKey,
 } from 'typeorm';
 
-export class CreateTableAsset1747768020862 implements MigrationInterface {
+export class CreateTableSavingGoal1748896576934 implements MigrationInterface {
   public async up(queryRunner: QueryRunner): Promise<void> {
     await queryRunner.createTable(
       new Table({
-        name: 'asset',
+        name: 'saving_goal',
         columns: [
           {
             name: 'id',
@@ -19,26 +19,32 @@ export class CreateTableAsset1747768020862 implements MigrationInterface {
             generationStrategy: 'increment',
           },
           {
+            name: 'user_id',
+            type: 'int',
+            isNullable: false,
+          },
+          {
             name: 'name',
             type: 'varchar',
             length: '100',
             isNullable: false,
           },
           {
-            name: 'code',
-            type: 'varchar',
-            length: '20',
+            name: 'description',
+            type: 'text',
             isNullable: true,
           },
           {
-            name: 'category_id',
-            type: 'int',
-            isNullable: false,
+            name: 'target_value',
+            type: 'decimal',
+            precision: 15,
+            scale: 2,
+            isNullable: true,
           },
           {
-            name: 'asset_type_id',
-            type: 'int',
-            isNullable: false,
+            name: 'target_date',
+            type: 'date',
+            isNullable: true,
           },
           {
             name: 'created_at',
@@ -57,43 +63,36 @@ export class CreateTableAsset1747768020862 implements MigrationInterface {
             isNullable: true,
           },
         ],
+        indices: [
+          {
+            name: 'UQ_saving_goal_name_user',
+            columnNames: ['name', 'user_id'],
+            isUnique: true,
+          },
+        ],
       }),
       true,
     );
 
-    // Criando chave estrangeira para categoria
+    // Criando chave estrangeira para usuário
     await queryRunner.createForeignKey(
-      'asset',
+      'saving_goal',
       new TableForeignKey({
-        name: 'FK_ASSET_CATEGORY',
-        columnNames: ['category_id'],
-        referencedTableName: 'category',
+        name: 'FK_SAVING_GOAL_USER',
+        columnNames: ['user_id'],
+        referencedTableName: 'user',
         referencedColumnNames: ['id'],
-        onDelete: 'RESTRICT',
-        onUpdate: 'CASCADE',
-      }),
-    );
-
-    // Criando chave estrangeira para tipo de ativo
-    await queryRunner.createForeignKey(
-      'asset',
-      new TableForeignKey({
-        name: 'FK_ASSET_ASSET_TYPE',
-        columnNames: ['asset_type_id'],
-        referencedTableName: 'asset_type',
-        referencedColumnNames: ['id'],
-        onDelete: 'RESTRICT',
+        onDelete: 'CASCADE',
         onUpdate: 'CASCADE',
       }),
     );
   }
 
   public async down(queryRunner: QueryRunner): Promise<void> {
-    // Remover as chaves estrangeiras primeiro
-    await queryRunner.dropForeignKey('asset', 'FK_ASSET_ASSET_TYPE');
-    await queryRunner.dropForeignKey('asset', 'FK_ASSET_CATEGORY');
+    // Remover a chave estrangeira primeiro
+    await queryRunner.dropForeignKey('saving_goal', 'FK_SAVING_GOAL_USER');
 
     // Depois remover a tabela
-    await queryRunner.dropTable('asset');
+    await queryRunner.dropTable('saving_goal');
   }
 }

@@ -15,9 +15,7 @@ import { UsersService } from 'src/users/users.service';
 import { Repository, IsNull } from 'typeorm';
 import { InjectRepository } from '@nestjs/typeorm';
 import { TransactionsService } from 'src/transactions/transactions.service';
-import { Transaction } from 'src/transactions/entities/transaction.entity';
 import { PaginatedResponseDto } from '../dtos/paginated-response.dto';
-import { TransactionTypeHelper } from 'src/constants/transaction-types.constants';
 
 @Injectable()
 export class PortfoliosService {
@@ -92,13 +90,10 @@ export class PortfoliosService {
     const portfolio = this.repository.create({
       ...createPortfolioDto,
       userId, // Usar o userId do usuário autenticado
-      currentBalance: 0,
-      averagePrice: 0,
     });
     const savedPortfolio = await this.repository.save(portfolio);
 
-    // Recalcular balance e preço médio após criação
-    return this.recalculatePortfolioBalance(savedPortfolio.id);
+    return this.findOne(savedPortfolio.id);
   }
 
   async findAll(userId: number): Promise<Portfolio[]> {
@@ -171,16 +166,11 @@ export class PortfoliosService {
   }
 
   /**
-   * Busca um portfolio específico com estratégia inteligente para valores de saldo e preço médio
+   * Busca um portfolio específico
    * @param id ID do portfolio a ser buscado
    * @param userId ID opcional do usuário para verificar acesso
-   * @param forceAccurateCalculation força o recálculo preciso (para operações financeiras críticas)
    */
-  async findOne(
-    id: number,
-    userId?: number,
-    forceAccurateCalculation: boolean = false,
-  ): Promise<Portfolio> {
+  async findOne(id: number, userId?: number): Promise<Portfolio> {
     const whereClause: { id: number; userId?: number } = { id };
     if (userId) {
       whereClause.userId = userId;
@@ -199,20 +189,6 @@ export class PortfoliosService {
 
     if (!portfolio) {
       throw new NotFoundException(`Portfolio with ID ${id} not found`);
-    }
-
-    // Para operações críticas, usar cálculo preciso
-    if (forceAccurateCalculation) {
-      // Recalcular saldo e preço médio com precisão
-      const accurateBalance = await this.getCurrentBalanceAccurate(id);
-      const accurateAveragePrice = await this.getAveragePriceAccurate(id);
-
-      // Criar cópia para não modificar a entidade persistida
-      return {
-        ...portfolio,
-        currentBalance: accurateBalance,
-        averagePrice: accurateAveragePrice,
-      };
     }
 
     return portfolio;
@@ -270,9 +246,6 @@ export class PortfoliosService {
     this.repository.merge(portfolio, updateData);
     const updatedPortfolio = await this.repository.save(portfolio);
 
-    // Explicita update no banco
-    await this.repository.update(id, { savingGoalId: updateData.savingGoalId });
-
     // Para mudanças apenas de savingGoalId, recarregar para garantir que a relação esteja correta
     if (Object.keys(updateData).length === 1 && 'savingGoalId' in updateData) {
       // Buscar com todas as relações, incluindo a nova meta de economia
@@ -296,8 +269,8 @@ export class PortfoliosService {
       return refreshedPortfolio;
     }
 
-    // Para outras atualizações, recalcular balance e preço médio
-    return this.recalculatePortfolioBalance(updatedPortfolio.id);
+    // Para outras atualizações, retornar o portfolio atualizado
+    return this.findOne(updatedPortfolio.id, userId);
   }
 
   async remove(id: number, userId: number): Promise<void> {
@@ -336,239 +309,35 @@ export class PortfoliosService {
   }
 
   /**
-   * Recalcula o balance atual (quantidade) e preço médio de um portfolio baseado em suas transações
+   * Obtém o saldo atual da última transação
    */
-  async recalculatePortfolioBalance(
-    portfolioId: number,
-    existingPortfolio?: Portfolio,
-  ): Promise<Portfolio> {
-    if (!existingPortfolio) {
-      // Buscar o portfolio diretamente do repositório para garantir dados atualizados
-      const foundPortfolio = await this.repository.findOne({
-        where: { id: portfolioId },
-        relations: [
-          'asset',
-          'asset.category',
-          'asset.assetType',
-          'platform',
-          'savingGoal',
-        ],
-      });
+  async getCurrentBalance(portfolioId: number): Promise<number> {
+    // Buscar a última transação para obter o saldo atual
+    const lastTransaction =
+      await this.transactionsService.findLastTransactionForPortfolio(
+        portfolioId,
+      );
 
-      if (!foundPortfolio) {
-        throw new NotFoundException(
-          `Portfolio with ID ${portfolioId} not found`,
-        );
-      }
-
-      existingPortfolio = foundPortfolio;
-    }
-
-    // Buscar todas as transações deste portfolio usando a TransactionsService
-    const transactions =
-      await this.transactionsService.findAllByPortfolioId(portfolioId);
-
-    // Calcular quantidade atual (compras - vendas)
-    const currentBalance = this.calculateTotalQuantity(transactions);
-
-    // Calcular preço médio ponderado das compras
-    const averagePrice = this.calculateAveragePrice(transactions);
-
-    // Preparar dados de atualização
-    const updateData: Partial<Portfolio> = {
-      currentBalance,
-      averagePrice,
-    };
-
-    // Atualizar campos no banco de dados
-    await this.repository.update(portfolioId, updateData);
-
-    // Verificar se o portfolio existente tem todas as relações necessárias
-    const hasAllRelations =
-      existingPortfolio.asset &&
-      existingPortfolio.asset.category &&
-      existingPortfolio.asset.assetType &&
-      existingPortfolio.platform;
-
-    if (hasAllRelations) {
-      // Portfolio já tem todas as relações, apenas atualizar valores calculados
-      const finalPortfolio = {
-        ...existingPortfolio,
-        currentBalance,
-        averagePrice,
-      };
-
-      // CORREÇÃO CRÍTICA: Verificar se a relação savingGoal está correta
-      // mesmo quando o portfolio tem todas as relações
-      if (existingPortfolio.savingGoal) {
-        const currentSavingGoalId = existingPortfolio.savingGoal.id;
-        if (existingPortfolio.savingGoalId !== currentSavingGoalId) {
-          if (existingPortfolio.savingGoalId) {
-            // Carregar a nova relação savingGoal
-            const newSavingGoal = await this.savingsGoalsService.findOne(
-              existingPortfolio.savingGoalId,
-              existingPortfolio.userId,
-            );
-            finalPortfolio.savingGoal = newSavingGoal;
-          } else {
-            // Se savingGoalId é null, a relação também deve ser null
-            finalPortfolio.savingGoal = null;
-          }
-        }
-      } else if (existingPortfolio.savingGoalId) {
-        // Se não há relação savingGoal mas deveria haver (savingGoalId não é null)
-        const newSavingGoal = await this.savingsGoalsService.findOne(
-          existingPortfolio.savingGoalId,
-          existingPortfolio.userId,
-        );
-        finalPortfolio.savingGoal = newSavingGoal;
-      }
-
-      return finalPortfolio;
-    } else {
-      // Portfolio não tem todas as relações, buscar do banco mas preservar campos atualizados
-      const portfolioWithRelations = await this.repository.findOne({
-        where: { id: portfolioId },
-        relations: [
-          'asset',
-          'asset.category',
-          'asset.assetType',
-          'platform',
-          'savingGoal',
-        ],
-      });
-
-      if (!portfolioWithRelations) {
-        throw new NotFoundException(
-          `Portfolio with ID ${portfolioId} not found after update`,
-        );
-      }
-
-      // Criar portfolio final preservando TODOS os campos do existingPortfolio
-      const finalPortfolio = {
-        ...portfolioWithRelations, // Base com relações
-        ...existingPortfolio, // Sobrescrever com valores atualizados
-        currentBalance, // Aplicar valores calculados
-        averagePrice,
-      };
-
-      // CORREÇÃO CRÍTICA: Se o savingGoalId foi alterado, a relação savingGoal
-      // precisa ser atualizada também, pois ela ainda aponta para o valor antigo
-      if (
-        existingPortfolio.savingGoalId !== portfolioWithRelations.savingGoalId
-      ) {
-        if (existingPortfolio.savingGoalId) {
-          // Carregar a nova relação savingGoal
-          const newSavingGoal = await this.savingsGoalsService.findOne(
-            existingPortfolio.savingGoalId,
-            portfolioWithRelations.userId, // usar o userId do portfolio para validação
-          );
-          finalPortfolio.savingGoal = newSavingGoal;
-        } else {
-          // Se savingGoalId é null, a relação também deve ser null
-          finalPortfolio.savingGoal = null;
-        }
-      }
-
-      return finalPortfolio;
-    }
+    // Retornar o saldo da última transação ou 0 se não houver transações
+    return lastTransaction ? lastTransaction.currentBalance : 0;
   }
 
   /**
-   * Calcula a quantidade total baseada nas transações (entradas - saídas)
-   * Tipos suportados:
-   * - Entrada (ID 1) = Adiciona quantidade
-   * - Saída (ID 2) = Subtrai quantidade
-   * - Outros IDs = Não afetam quantidade (ex: dividendos, rendimentos, etc.)
+   * Obtém o preço médio da última transação
    */
-  calculateTotalQuantity(transactions: Transaction[]): number {
-    return transactions.reduce((total, transaction) => {
-      let quantityMultiplier = 0;
+  async getAveragePrice(portfolioId: number): Promise<number> {
+    // Buscar a última transação para obter o preço médio atual
+    const lastTransaction =
+      await this.transactionsService.findLastTransactionForPortfolio(
+        portfolioId,
+      );
 
-      if (TransactionTypeHelper.isEntrada(transaction.transactionTypeId)) {
-        quantityMultiplier = 1;
-      } else if (TransactionTypeHelper.isSaida(transaction.transactionTypeId)) {
-        quantityMultiplier = -1;
-      } else {
-        // Todos os outros tipos (dividendos, rendimentos, etc.) não afetam quantidade
-        quantityMultiplier = 0;
-      }
-
-      return total + transaction.quantity * quantityMultiplier;
-    }, 0);
+    // Retornar o preço médio da última transação ou 0 se não houver transações
+    return lastTransaction ? lastTransaction.averagePrice : 0;
   }
 
   /**
-   * Calcula o preço médio ponderado das transações de entrada (compras)
-   */
-  calculateAveragePrice(transactions: Transaction[]): number {
-    // Filtrar apenas transações de entrada (compras) usando verificação semântica
-    const buyTransactions = transactions.filter((t) =>
-      TransactionTypeHelper.isEntrada(t.transactionTypeId),
-    );
-
-    if (buyTransactions.length === 0) return 0;
-
-    const totalQuantity = buyTransactions.reduce(
-      (sum, t) => sum + t.quantity,
-      0,
-    );
-    const weightedSum = buyTransactions.reduce(
-      (sum, t) => sum + t.unitPrice * t.quantity,
-      0,
-    );
-
-    return totalQuantity > 0 ? weightedSum / totalQuantity : 0;
-  }
-
-  /**
-   * Verifica se há saldo suficiente usando o campo currentBalance (cache)
-   * ⚠️  ATENÇÃO: Use apenas para consultas rápidas, NÃO para validações de venda!
-   * Para vendas, sempre use validateSaleTransaction()
-   */
-  async hasSufficientBalance(
-    portfolioId: number,
-    requiredAmount: number,
-  ): Promise<boolean> {
-    const portfolio = await this.repository.findOne({
-      where: { id: portfolioId },
-    });
-
-    if (!portfolio) {
-      throw new NotFoundException(`Portfolio with ID ${portfolioId} not found`);
-    }
-
-    return portfolio.currentBalance >= requiredAmount;
-  }
-
-  /**
-   * Obtém o saldo atual usando cache (currentBalance)
-   * ⚠️  ATENÇÃO: Use apenas para dashboards/listagens, NÃO para validações críticas!
-   * Para operações financeiras, sempre use getCurrentBalanceAccurate()
-   */
-  async getCurrentBalanceFast(portfolioId: number): Promise<number> {
-    const portfolio = await this.repository.findOne({
-      where: { id: portfolioId },
-    });
-
-    if (!portfolio) {
-      throw new NotFoundException(`Portfolio with ID ${portfolioId} not found`);
-    }
-
-    return portfolio.currentBalance;
-  }
-
-  /**
-   * Obtém o saldo atual com recálculo preciso
-   * Para validações críticas onde precisão é essencial
-   */
-  async getCurrentBalanceAccurate(portfolioId: number): Promise<number> {
-    const portfolio = await this.recalculatePortfolioBalance(portfolioId);
-    return portfolio.currentBalance;
-  }
-
-  /**
-   * Validação segura para vendas: sempre recalcula para máxima precisão
+   * Validação segura para vendas: usa o saldo atual da última transação
    * Prioriza segurança sobre performance em operações críticas
    */
   async validateSaleTransaction(
@@ -581,64 +350,21 @@ export class PortfoliosService {
       await this.findOne(portfolioId, userId);
     }
 
-    // Para vendas, SEMPRE recalcular - precisão é crítica
-    const portfolio = await this.recalculatePortfolioBalance(portfolioId);
+    // Buscar a última transação para obter o saldo atual
+    const lastTransaction =
+      await this.transactionsService.findLastTransactionForPortfolio(
+        portfolioId,
+      );
 
-    if (portfolio.currentBalance < saleAmount) {
+    // Se não houver transações ou saldo insuficiente
+    if (!lastTransaction || lastTransaction.currentBalance < saleAmount) {
+      const availableBalance = lastTransaction
+        ? lastTransaction.currentBalance
+        : 0;
       throw new BadRequestException(
-        `Insufficient balance for sale. Available: ${portfolio.currentBalance}, Required: ${saleAmount}`,
+        `Insufficient balance for sale. Available: ${availableBalance}, Required: ${saleAmount}`,
       );
     }
-  }
-
-  /**
-   * Obtém o preço médio usando cache (averagePrice)
-   * ⚠️  ATENÇÃO: Use apenas para dashboards/listagens, NÃO para operações críticas!
-   * Para relatórios financeiros e vendas, sempre use getAveragePriceAccurate()
-   */
-  async getAveragePriceFast(portfolioId: number): Promise<number> {
-    const portfolio = await this.repository.findOne({
-      where: { id: portfolioId },
-    });
-
-    if (!portfolio) {
-      throw new NotFoundException(`Portfolio with ID ${portfolioId} not found`);
-    }
-
-    return portfolio.averagePrice;
-  }
-
-  /**
-   * Obtém o preço médio com recálculo preciso
-   * Para relatórios financeiros e outras operações onde precisão é essencial
-   */
-  async getAveragePriceAccurate(portfolioId: number): Promise<number> {
-    // Buscar todas as transações e recalcular
-    const transactions =
-      await this.transactionsService.findAllByPortfolioId(portfolioId);
-    return this.calculateAveragePrice(transactions);
-  }
-
-  /**
-   * Recalcula apenas o preço médio e atualiza o portfolio
-   * Útil quando só precisamos atualizar o preço médio sem afetar o saldo
-   */
-  async recalculateAveragePrice(portfolioId: number): Promise<void> {
-    const portfolio = await this.repository.findOne({
-      where: { id: portfolioId },
-    });
-
-    if (!portfolio) {
-      throw new NotFoundException(`Portfolio with ID ${portfolioId} not found`);
-    }
-
-    // Buscar todas as transações e recalcular
-    const transactions =
-      await this.transactionsService.findAllByPortfolioId(portfolioId);
-    const averagePrice = this.calculateAveragePrice(transactions);
-
-    // Atualizar apenas o preço médio
-    await this.repository.update(portfolioId, { averagePrice });
   }
 
   /**
@@ -661,11 +387,8 @@ export class PortfoliosService {
     portfolio.savingGoalId = null;
     portfolio.savingGoal = null;
 
-    // Salvar e garantir que as alterações são persistidas
+    // Salvar alterações
     await this.repository.save(portfolio);
-
-    // Update explícito para garantir que o savingGoalId seja null
-    await this.repository.update(id, { savingGoalId: null });
 
     // Buscar portfolio atualizado com relações
     const updatedPortfolio = await this.repository.findOne({

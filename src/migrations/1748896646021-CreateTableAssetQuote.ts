@@ -5,11 +5,11 @@ import {
   TableForeignKey,
 } from 'typeorm';
 
-export class CreateTableSavingGoal1747784366452 implements MigrationInterface {
+export class CreateTableAssetQuote1748896646021 implements MigrationInterface {
   public async up(queryRunner: QueryRunner): Promise<void> {
     await queryRunner.createTable(
       new Table({
-        name: 'saving_goal',
+        name: 'asset_quote',
         columns: [
           {
             name: 'id',
@@ -19,32 +19,21 @@ export class CreateTableSavingGoal1747784366452 implements MigrationInterface {
             generationStrategy: 'increment',
           },
           {
-            name: 'user_id',
+            name: 'asset_id',
             type: 'int',
             isNullable: false,
           },
           {
-            name: 'name',
-            type: 'varchar',
-            length: '100',
+            name: 'price',
+            type: 'decimal',
+            precision: 18,
+            scale: 6,
             isNullable: false,
           },
           {
-            name: 'description',
-            type: 'text',
-            isNullable: true,
-          },
-          {
-            name: 'target_value',
-            type: 'decimal',
-            precision: 15,
-            scale: 2,
-            isNullable: true,
-          },
-          {
-            name: 'target_date',
-            type: 'date',
-            isNullable: true,
+            name: 'timestamp',
+            type: 'timestamp',
+            default: 'CURRENT_TIMESTAMP',
           },
           {
             name: 'created_at',
@@ -64,17 +53,15 @@ export class CreateTableSavingGoal1747784366452 implements MigrationInterface {
           },
         ],
       }),
-      true,
     );
-
-    // Criando chave estrangeira para usuário
+    // Criando chave estrangeira para asset
     await queryRunner.createForeignKey(
-      'saving_goal',
+      'asset_quote',
       new TableForeignKey({
-        name: 'FK_SAVING_GOAL_USER',
-        columnNames: ['user_id'],
-        referencedTableName: 'user',
+        name: 'FK_ASSET_QUOTE_ASSET',
+        columnNames: ['asset_id'],
         referencedColumnNames: ['id'],
+        referencedTableName: 'asset',
         onDelete: 'CASCADE',
         onUpdate: 'CASCADE',
       }),
@@ -82,10 +69,6 @@ export class CreateTableSavingGoal1747784366452 implements MigrationInterface {
   }
 
   public async down(queryRunner: QueryRunner): Promise<void> {
-    // Remover a chave estrangeira primeiro
-    await queryRunner.dropForeignKey('saving_goal', 'FK_SAVING_GOAL_USER');
-
-    // Depois remover a tabela
-    await queryRunner.dropTable('saving_goal');
+    await queryRunner.dropTable('asset_quote');
   }
 }

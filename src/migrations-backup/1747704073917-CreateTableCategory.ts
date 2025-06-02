@@ -1,4 +1,10 @@
-import { MigrationInterface, QueryRunner, Table, TableIndex } from 'typeorm';
+import {
+  MigrationInterface,
+  QueryRunner,
+  Table,
+  TableIndex,
+  TableForeignKey,
+} from 'typeorm';
 
 export class CreateTableCategory1747704073917 implements MigrationInterface {
   public async up(queryRunner: QueryRunner): Promise<void> {
@@ -17,6 +23,11 @@ export class CreateTableCategory1747704073917 implements MigrationInterface {
             name: 'name',
             type: 'varchar',
             length: '50',
+            isNullable: false,
+          },
+          {
+            name: 'user_id',
+            type: 'int',
             isNullable: false,
           },
           {
@@ -40,12 +51,25 @@ export class CreateTableCategory1747704073917 implements MigrationInterface {
       true,
     );
 
-    // Criando um índice único para o campo 'name' para garantir nomes únicos
+    // Criando chave estrangeira para usuário
+    await queryRunner.createForeignKey(
+      'category',
+      new TableForeignKey({
+        name: 'FK_category_user_id',
+        columnNames: ['user_id'],
+        referencedTableName: 'user',
+        referencedColumnNames: ['id'],
+        onDelete: 'CASCADE',
+        onUpdate: 'CASCADE',
+      }),
+    );
+
+    // Criando um índice único para name por usuário para garantir nomes únicos por usuário
     await queryRunner.createIndex(
       'category',
       new TableIndex({
-        name: 'IDX_CATEGORY_NAME',
-        columnNames: ['name'],
+        name: 'UQ_category_name_user',
+        columnNames: ['name', 'user_id'],
         isUnique: true,
         where: 'deleted_at IS NULL', // Garante unicidade apenas para registros não deletados
       }),
@@ -54,7 +78,10 @@ export class CreateTableCategory1747704073917 implements MigrationInterface {
 
   public async down(queryRunner: QueryRunner): Promise<void> {
     // Remover o índice primeiro
-    await queryRunner.dropIndex('category', 'IDX_CATEGORY_NAME');
+    await queryRunner.dropIndex('category', 'UQ_category_name_user');
+
+    // Remover chave estrangeira
+    await queryRunner.dropForeignKey('category', 'FK_category_user_id');
 
     // Depois remover a tabela
     await queryRunner.dropTable('category');

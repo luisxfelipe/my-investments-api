@@ -15,7 +15,6 @@ import { CreateAssetTypeDto } from './dto/create-asset-type.dto';
 import { UpdateAssetTypeDto } from './dto/update-asset-type.dto';
 import { ApiOperation, ApiParam, ApiResponse, ApiQuery } from '@nestjs/swagger';
 import { AssetTypeResponseDto } from './dto/asset-type-response.dto';
-import { UserDecorator } from 'src/decorators/user.decorator';
 import { PaginatedResponseDto } from '../dtos/paginated-response.dto';
 
 @Controller('asset-types')
@@ -35,10 +34,9 @@ export class AssetTypesController {
   })
   async create(
     @Body() createAssetTypeDto: CreateAssetTypeDto,
-    @UserDecorator() userId: number,
   ): Promise<AssetTypeResponseDto> {
     return new AssetTypeResponseDto(
-      await this.assetTypesService.create(createAssetTypeDto, userId),
+      await this.assetTypesService.create(createAssetTypeDto),
     );
   }
 
@@ -49,10 +47,8 @@ export class AssetTypesController {
     description: 'List of all asset types',
     type: [AssetTypeResponseDto],
   })
-  async findAll(
-    @UserDecorator() userId: number,
-  ): Promise<AssetTypeResponseDto[]> {
-    const assetTypes = await this.assetTypesService.findAll(userId);
+  async findAll(): Promise<AssetTypeResponseDto[]> {
+    const assetTypes = await this.assetTypesService.findAll();
     return assetTypes.map((assetType) => new AssetTypeResponseDto(assetType));
   }
 
@@ -76,7 +72,6 @@ export class AssetTypesController {
     type: PaginatedResponseDto,
   })
   async findAllWithPagination(
-    @UserDecorator() userId: number,
     @Query('take') take: string = '10',
     @Query('page') page: string = '1',
   ): Promise<PaginatedResponseDto<AssetTypeResponseDto>> {
@@ -86,7 +81,6 @@ export class AssetTypesController {
     const assetTypes = await this.assetTypesService.findAllWithPagination(
       takeNumber,
       pageNumber,
-      userId,
     );
 
     // Transformar os asset types em DTOs de resposta
@@ -112,13 +106,8 @@ export class AssetTypesController {
     type: AssetTypeResponseDto,
   })
   @ApiResponse({ status: 404, description: 'Asset Type not found' })
-  async findOne(
-    @Param('id') id: string,
-    @UserDecorator() userId: number,
-  ): Promise<AssetTypeResponseDto> {
-    return new AssetTypeResponseDto(
-      await this.assetTypesService.findOne(+id, userId),
-    );
+  async findOne(@Param('id') id: string): Promise<AssetTypeResponseDto> {
+    return new AssetTypeResponseDto(await this.assetTypesService.findOne(+id));
   }
 
   @Patch(':id')
@@ -138,10 +127,9 @@ export class AssetTypesController {
   async update(
     @Param('id') id: string,
     @Body() updateAssetTypeDto: UpdateAssetTypeDto,
-    @UserDecorator() userId: number,
   ): Promise<AssetTypeResponseDto> {
     return new AssetTypeResponseDto(
-      await this.assetTypesService.update(+id, updateAssetTypeDto, userId),
+      await this.assetTypesService.update(+id, updateAssetTypeDto),
     );
   }
 
@@ -154,10 +142,7 @@ export class AssetTypesController {
     description: 'Asset Type has been marked as successfully removed',
   })
   @ApiResponse({ status: 404, description: 'Asset Type not found' })
-  async remove(
-    @Param('id') id: string,
-    @UserDecorator() userId: number,
-  ): Promise<void> {
-    await this.assetTypesService.remove(+id, userId);
+  async remove(@Param('id') id: string): Promise<void> {
+    await this.assetTypesService.remove(+id);
   }
 }

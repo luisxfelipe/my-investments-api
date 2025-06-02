@@ -68,6 +68,26 @@ export class Transaction {
   @Column({ name: 'linked_transaction_id', nullable: true })
   linkedTransactionId?: number;
 
+  @ApiProperty({ description: 'Current balance after this transaction' })
+  @Column({
+    name: 'current_balance',
+    type: 'decimal',
+    precision: 18,
+    scale: 8,
+    default: 0,
+  })
+  currentBalance: number;
+
+  @ApiProperty({ description: 'Average price after this transaction' })
+  @Column({
+    name: 'average_price',
+    type: 'decimal',
+    precision: 18,
+    scale: 8,
+    default: 0,
+  })
+  averagePrice: number;
+
   @ManyToOne(() => Portfolio)
   @JoinColumn({ name: 'portfolio_id' })
   portfolio: Portfolio;

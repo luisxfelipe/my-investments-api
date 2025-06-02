@@ -17,6 +17,7 @@ import { Transaction } from './entities/transaction.entity';
 import { PaginatedResponseDto } from 'src/dtos/paginated-response.dto';
 import {
   TransactionTypeHelper,
+  TransactionReasonHelper,
   TRANSACTION_REASON_NAMES,
   TRANSACTION_TYPE_IDS,
 } from 'src/constants/transaction-types.constants';
@@ -38,8 +39,8 @@ export class TransactionsService {
     createTransactionDto: CreateTransactionDto,
     userId: number,
   ): Promise<Transaction> {
-    // Verifica se o portfólio existe e pertence ao usuário
-    const portfolio = await this.portfoliosService.findOne(
+    // Validar portfólio e permissões
+    await this.validatePortfolioAccess(
       createTransactionDto.portfolioId,
       userId,
     );
@@ -64,17 +65,25 @@ export class TransactionsService {
       );
     }
 
+    // Calcular novos valores de saldo e preço médio
+    const { newBalance, newAvgPrice } = await this.calculateBalanceAndPrice(
+      createTransactionDto.portfolioId,
+      createTransactionDto.quantity,
+      createTransactionDto.unitPrice,
+      createTransactionDto.transactionReasonId,
+      transactionReason.transactionTypeId,
+    );
+
     const transaction = this.repository.create({
       ...createTransactionDto,
       totalValue:
         createTransactionDto.quantity * createTransactionDto.unitPrice -
         (createTransactionDto.fee || 0),
+      currentBalance: newBalance,
+      averagePrice: newAvgPrice,
     });
-    const savedTransaction = await this.repository.save(transaction);
 
-    // ✅ Recalcular saldo e preço médio do portfolio após a transação
-    await this.portfoliosService.recalculatePortfolioBalance(portfolio.id);
-    // Não precisamos chamar recalculateAveragePrice separadamente pois o recalculatePortfolioBalance já atualiza ambos
+    const savedTransaction = await this.repository.save(transaction);
 
     return savedTransaction;
   }
@@ -197,7 +206,7 @@ export class TransactionsService {
     await this.validateIsLastTransaction(id, transaction.portfolioId);
 
     // ✅ VALIDAÇÃO SEGURA: Verificar se o portfolio da transação ainda existe e pertence ao usuário
-    await this.portfoliosService.findOne(transaction.portfolioId, userId);
+    await this.validatePortfolioAccess(transaction.portfolioId, userId);
 
     // Verifica se o tipo de transação existe, se foi fornecido
     if (updateTransactionDto.transactionTypeId) {
@@ -246,10 +255,25 @@ export class TransactionsService {
         const transactionsWithoutCurrent = transactions.filter(
           (t) => t.id !== transaction.id,
         );
-        const balanceWithoutCurrent =
-          this.portfoliosService.calculateTotalQuantity(
-            transactionsWithoutCurrent,
+
+        // Calcular saldo total sem a transação atual
+        let balanceWithoutCurrent = 0;
+        let currentAvgPrice = 0;
+
+        for (const t of transactionsWithoutCurrent) {
+          const transactionReason =
+            await this.transactionReasonsService.findOne(t.transactionReasonId);
+          const result = this.calculateBalanceAndPriceFromValues(
+            balanceWithoutCurrent,
+            currentAvgPrice,
+            t.quantity,
+            t.unitPrice,
+            t.transactionReasonId,
+            transactionReason.transactionTypeId,
           );
+          balanceWithoutCurrent = result.newBalance;
+          currentAvgPrice = result.newAvgPrice;
+        }
 
         if (balanceWithoutCurrent < newTransactionQuantity) {
           throw new BadRequestException(
@@ -291,11 +315,9 @@ export class TransactionsService {
     });
     const updatedTransaction = await this.repository.save(transaction);
 
-    // ✅ Recalcular saldo e preço médio do portfolio após a atualização
-    await this.portfoliosService.recalculatePortfolioBalance(
-      transaction.portfolioId,
-    );
-    // Não precisamos chamar recalculateAveragePrice separadamente pois o recalculatePortfolioBalance já atualiza ambos
+    // Recalcular todos os saldos e preços médios do portfólio
+    // já que alterar uma transação impacta todas as subsequentes
+    await this.recalculateTransactionBalances(transaction.portfolioId);
 
     return updatedTransaction;
   }
@@ -360,9 +382,8 @@ export class TransactionsService {
     // Usa softDelete em vez de remove para fazer soft delete
     await this.repository.softDelete(id);
 
-    // ✅ Recalcular saldo e preço médio do portfolio após a exclusão
-    await this.portfoliosService.recalculatePortfolioBalance(portfolioId);
-    // Não precisamos chamar recalculateAveragePrice separadamente pois o recalculatePortfolioBalance já atualiza ambos
+    // Recalcular saldo e preço médio de todas as transações após a exclusão
+    await this.recalculateTransactionBalances(portfolioId);
   }
 
   /**
@@ -690,6 +711,16 @@ export class TransactionsService {
     // Preço unitário para moedas é sempre 1
     const unitPrice = CurrencyHelper.getDefaultUnitPrice();
 
+    // Calcular saldo e preço médio para transação de origem (saída)
+    const { newBalance: newSourceBalance, newAvgPrice: sourceAvgPrice } =
+      await this.calculateBalanceAndPrice(
+        sourcePortfolioId,
+        quantity,
+        unitPrice,
+        sendReason.id,
+        sendReason.transactionTypeId,
+      );
+
     // Cria a transação de saída (transferência enviada)
     const sourceTransaction = this.repository.create({
       portfolioId: sourcePortfolioId,
@@ -703,13 +734,24 @@ export class TransactionsService {
       notes: notes
         ? `${notes} - Transfer to portfolio #${targetPortfolioId}`
         : `Transfer to portfolio #${targetPortfolioId}`,
+      currentBalance: newSourceBalance,
+      averagePrice: sourceAvgPrice,
     });
 
     // Salva a transação de origem
     const savedSourceTransaction =
       await this.repository.save(sourceTransaction);
 
-    // Cria a transação de entrada (transferência recebida)
+    // Calcular saldo e preço médio para transação de destino (entrada)
+    const { newBalance: newTargetBalance, newAvgPrice: targetAvgPrice } =
+      await this.calculateBalanceAndPrice(
+        targetPortfolioId,
+        quantity,
+        unitPrice,
+        receiveReason.id,
+        receiveReason.transactionTypeId,
+      );
+
     const targetTransaction = this.repository.create({
       portfolioId: targetPortfolioId,
       transactionTypeId: receiveReason.transactionTypeId,
@@ -723,6 +765,8 @@ export class TransactionsService {
         ? `${notes} - Transfer from portfolio #${sourcePortfolioId}`
         : `Transfer from portfolio #${sourcePortfolioId}`,
       linkedTransactionId: savedSourceTransaction.id,
+      currentBalance: newTargetBalance,
+      averagePrice: targetAvgPrice,
     });
 
     // Salva a transação de destino
@@ -732,10 +776,6 @@ export class TransactionsService {
     // Atualiza a transação de origem com a referência para a transação de destino
     savedSourceTransaction.linkedTransactionId = savedTargetTransaction.id;
     await this.repository.save(savedSourceTransaction);
-
-    // Recalcula os saldos dos portfolios
-    await this.portfoliosService.recalculatePortfolioBalance(sourcePortfolioId);
-    await this.portfoliosService.recalculatePortfolioBalance(targetPortfolioId);
 
     // Retorna as duas transações vinculadas
     return {
@@ -765,5 +805,169 @@ export class TransactionsService {
         'Only the most recent transaction in the portfolio can be edited. Please edit transactions in chronological order.',
       );
     }
+  }
+
+  /**
+   * Encontra a última transação para um portfolio específico
+   * @param portfolioId ID do portfolio
+   * @returns A última transação ou null se não houver nenhuma
+   */
+  async findLastTransactionForPortfolio(
+    portfolioId: number,
+  ): Promise<Transaction | null> {
+    return this.repository
+      .createQueryBuilder('transaction')
+      .where('transaction.portfolioId = :portfolioId', { portfolioId })
+      .orderBy('transaction.transactionDate', 'DESC')
+      .addOrderBy('transaction.id', 'DESC')
+      .getOne();
+  }
+
+  /**
+   * Recalcula os campos currentBalance e averagePrice para todas as transações
+   * de um portfolio em ordem cronológica
+   * @param portfolioId ID do portfolio
+   */
+  async recalculateTransactionBalances(portfolioId: number): Promise<void> {
+    // Buscar todas as transações deste portfolio ordenadas por data
+    const transactions = await this.repository.find({
+      where: { portfolioId },
+      order: {
+        transactionDate: 'ASC',
+        id: 'ASC', // Em caso de mesma data, usar ID para desempate
+      },
+    });
+
+    if (transactions.length === 0) {
+      return;
+    }
+
+    let currentBalance = 0;
+    let currentAveragePrice = 0;
+
+    // Processar cada transação em ordem cronológica
+    for (const transaction of transactions) {
+      const transactionReason = await this.transactionReasonsService.findOne(
+        transaction.transactionReasonId,
+      );
+
+      // Usar método helper para calcular saldo e preço médio
+      const result = this.calculateBalanceAndPriceFromValues(
+        currentBalance,
+        currentAveragePrice,
+        transaction.quantity,
+        transaction.unitPrice,
+        transaction.transactionReasonId,
+        transactionReason.transactionTypeId,
+      );
+
+      currentBalance = result.newBalance;
+      currentAveragePrice = result.newAvgPrice;
+
+      // Atualizar a transação com os valores recalculados
+      await this.repository.update(transaction.id, {
+        currentBalance,
+        averagePrice: currentAveragePrice,
+      });
+    }
+  }
+
+  /**
+   * Valida se o portfolio existe e se o usuário tem acesso a ele
+   * @param portfolioId ID do portfolio
+   * @param userId ID do usuário
+   */
+  private async validatePortfolioAccess(
+    portfolioId: number,
+    userId: number,
+  ): Promise<void> {
+    await this.portfoliosService.findOne(portfolioId, userId);
+  }
+
+  /**
+   * Calcula o novo saldo e preço médio baseado na última transação do portfólio
+   * @param portfolioId ID do portfolio
+   * @param quantity Quantidade da nova transação
+   * @param unitPrice Preço unitário da nova transação
+   * @param transactionReasonId ID da razão da transação
+   * @param transactionTypeId ID do tipo da transação
+   * @returns Objeto com newBalance e newAvgPrice
+   */
+  private async calculateBalanceAndPrice(
+    portfolioId: number,
+    quantity: number,
+    unitPrice: number,
+    transactionReasonId: number,
+    transactionTypeId: number,
+  ): Promise<{ newBalance: number; newAvgPrice: number }> {
+    // Obter a última transação para esse portfólio
+    const lastTransaction =
+      await this.findLastTransactionForPortfolio(portfolioId);
+
+    // Determinar saldo e preço médio atuais
+    const currentBalance = lastTransaction ? lastTransaction.currentBalance : 0;
+    const currentAvgPrice = lastTransaction ? lastTransaction.averagePrice : 0;
+
+    return this.calculateBalanceAndPriceFromValues(
+      currentBalance,
+      currentAvgPrice,
+      quantity,
+      unitPrice,
+      transactionReasonId,
+      transactionTypeId,
+    );
+  }
+
+  /**
+   * Calcula novo saldo e preço médio baseado em valores fornecidos
+   * @param currentBalance Saldo atual
+   * @param currentAvgPrice Preço médio atual
+   * @param quantity Quantidade da transação
+   * @param unitPrice Preço unitário da transação
+   * @param transactionReasonId ID da razão da transação
+   * @param transactionTypeId ID do tipo da transação
+   * @returns Objeto com newBalance e newAvgPrice
+   */
+  private calculateBalanceAndPriceFromValues(
+    currentBalance: number,
+    currentAvgPrice: number,
+    quantity: number,
+    unitPrice: number,
+    transactionReasonId: number,
+    transactionTypeId: number,
+  ): { newBalance: number; newAvgPrice: number } {
+    let newBalance: number;
+    let newAvgPrice: number;
+
+    if (TransactionTypeHelper.isEntrada(transactionTypeId)) {
+      // Entrada (compra, depósito, etc)
+      newBalance = Number(currentBalance) + Number(quantity);
+
+      if (TransactionReasonHelper.isCompra(transactionReasonId)) {
+        // Atualiza preço médio apenas para compras usando preço médio ponderado
+        const totalCurrentValue =
+          Number(currentBalance) * Number(currentAvgPrice);
+        const newPurchaseValue = Number(quantity) * Number(unitPrice);
+
+        newAvgPrice =
+          newBalance > 0
+            ? (totalCurrentValue + newPurchaseValue) / newBalance
+            : 0;
+      } else {
+        // Mantém preço médio para outros tipos de entrada (depósitos, transferências recebidas)
+        newAvgPrice = currentBalance > 0 ? currentAvgPrice : 0;
+      }
+    } else {
+      // Saída (venda, retirada, etc)
+      newBalance = Number(currentBalance) - Number(quantity);
+      // Preço médio não muda em vendas/saídas, exceto se saldo zerado
+      newAvgPrice = newBalance > 0 ? currentAvgPrice : 0;
+      // Previne saldo negativo
+      if (newBalance < 0) {
+        newBalance = 0;
+      }
+    }
+
+    return { newBalance, newAvgPrice };
   }
 }

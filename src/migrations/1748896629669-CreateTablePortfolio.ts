@@ -3,9 +3,10 @@ import {
   QueryRunner,
   Table,
   TableForeignKey,
+  TableIndex,
 } from 'typeorm';
 
-export class CreateTablePortfolio1747792752543 implements MigrationInterface {
+export class CreateTablePortfolio1748896629669 implements MigrationInterface {
   public async up(queryRunner: QueryRunner): Promise<void> {
     await queryRunner.createTable(
       new Table({
@@ -37,22 +38,6 @@ export class CreateTablePortfolio1747792752543 implements MigrationInterface {
             name: 'saving_goal_id',
             type: 'int',
             isNullable: true,
-          },
-          {
-            name: 'current_balance',
-            type: 'decimal',
-            precision: 18,
-            scale: 8,
-            isNullable: false,
-            default: 0,
-          },
-          {
-            name: 'average_price',
-            type: 'decimal',
-            precision: 18,
-            scale: 8,
-            isNullable: false,
-            default: 0,
           },
           {
             name: 'created_at',
@@ -126,11 +111,81 @@ export class CreateTablePortfolio1747792752543 implements MigrationInterface {
         onUpdate: 'CASCADE',
       }),
     );
+
+    // Criando constraint de unicidade para user_id, asset_id, platform_id, saving_goal_id
+    await queryRunner.query(`
+      ALTER TABLE \`portfolio\`
+      ADD CONSTRAINT \`UQ_user_asset_platform_goal\`
+      UNIQUE (\`user_id\`, \`asset_id\`, \`platform_id\`, \`saving_goal_id\`)
+    `);
+
+    // Criando índices para performance
+    await queryRunner.createIndex(
+      'portfolio',
+      new TableIndex({
+        name: 'IDX_portfolio_user_id',
+        columnNames: ['user_id'],
+      }),
+    );
+
+    await queryRunner.createIndex(
+      'portfolio',
+      new TableIndex({
+        name: 'IDX_portfolio_asset_id',
+        columnNames: ['asset_id'],
+      }),
+    );
+
+    await queryRunner.createIndex(
+      'portfolio',
+      new TableIndex({
+        name: 'IDX_portfolio_platform_id',
+        columnNames: ['platform_id'],
+      }),
+    );
+
+    await queryRunner.createIndex(
+      'portfolio',
+      new TableIndex({
+        name: 'IDX_portfolio_saving_goal_id',
+        columnNames: ['saving_goal_id'],
+      }),
+    );
+
+    await queryRunner.createIndex(
+      'portfolio',
+      new TableIndex({
+        name: 'IDX_portfolio_user_asset',
+        columnNames: ['user_id', 'asset_id'],
+      }),
+    );
+
+    await queryRunner.createIndex(
+      'portfolio',
+      new TableIndex({
+        name: 'IDX_portfolio_user_platform',
+        columnNames: ['user_id', 'platform_id'],
+      }),
+    );
   }
 
   public async down(queryRunner: QueryRunner): Promise<void> {
+    // Remover índices primeiro
+    await queryRunner.dropIndex('portfolio', 'IDX_portfolio_user_platform');
+    await queryRunner.dropIndex('portfolio', 'IDX_portfolio_user_asset');
+    await queryRunner.dropIndex('portfolio', 'IDX_portfolio_saving_goal_id');
+    await queryRunner.dropIndex('portfolio', 'IDX_portfolio_platform_id');
+    await queryRunner.dropIndex('portfolio', 'IDX_portfolio_asset_id');
+    await queryRunner.dropIndex('portfolio', 'IDX_portfolio_user_id');
+
+    // Remover constraint de unicidade
+    await queryRunner.query(`
+      ALTER TABLE \`portfolio\`
+      DROP CONSTRAINT \`UQ_user_asset_platform_goal\`
+    `);
+
     // Remover as chaves estrangeiras primeiro
-    await queryRunner.dropForeignKey('portfolio', 'FK_PORTFOLIO_SAVINGS_GOAL');
+    await queryRunner.dropForeignKey('portfolio', 'FK_PORTFOLIO_SAVING_GOAL');
     await queryRunner.dropForeignKey('portfolio', 'FK_PORTFOLIO_PLATFORM');
     await queryRunner.dropForeignKey('portfolio', 'FK_PORTFOLIO_ASSET');
     await queryRunner.dropForeignKey('portfolio', 'FK_PORTFOLIO_USER');

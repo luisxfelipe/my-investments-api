@@ -19,11 +19,14 @@ import { PlatformAssetResponseDto } from './dto/platform-asset-response.dto';
 import { AssetTypeResponseDto } from 'src/asset-types/dto/asset-type-response.dto';
 import { AssetType } from 'src/asset-types/entities/asset-type.entity';
 import { TransactionsService } from 'src/transactions/transactions.service';
+import {
+  TransactionTypeHelper,
+  TransactionReasonHelper,
+} from 'src/constants/transaction-types.constants';
 import { AssetsService } from 'src/assets/assets.service';
 import { AssetQuotesService } from 'src/asset-quotes/asset-quotes.service';
 import { Transaction } from 'src/transactions/entities/transaction.entity';
 import { PortfoliosService } from 'src/portfolios/portfolios.service';
-import { TransactionTypeHelper } from 'src/constants/transaction-types.constants';
 
 @Injectable()
 export class PlatformsService {
@@ -209,13 +212,42 @@ export class PlatformsService {
     let assetCount = 0;
 
     for (const [assetId, assetTransactionsList] of assetTransactions) {
-      // Usar os métodos do PortfoliosService para calcular quantidade e preço médio
-      const quantity = this.portfoliosService.calculateTotalQuantity(
-        assetTransactionsList,
-      );
-      const averagePrice = this.portfoliosService.calculateAveragePrice(
-        assetTransactionsList,
-      );
+      // Calcular quantidade total e preço médio usando lógica manual
+      let quantity = 0;
+      let averagePrice = 0;
+      let totalInvestedValue = 0;
+
+      // Calcular valores simulando a lógica de TransactionService
+      for (const transaction of assetTransactionsList) {
+        const transactionValue = transaction.quantity * transaction.unitPrice;
+
+        if (TransactionTypeHelper.isEntrada(transaction.transactionTypeId)) {
+          if (
+            TransactionReasonHelper.isCompra(transaction.transactionReasonId)
+          ) {
+            // Para compras, calcular preço médio ponderado
+            const newTotalValue = totalInvestedValue + transactionValue;
+            const newQuantity = quantity + transaction.quantity;
+
+            if (newQuantity > 0) {
+              averagePrice = newTotalValue / newQuantity;
+              totalInvestedValue = newTotalValue;
+            }
+
+            quantity = newQuantity;
+          } else {
+            // Para outros tipos de entrada (depósitos, transferências)
+            quantity += transaction.quantity;
+          }
+        } else if (
+          TransactionTypeHelper.isSaida(transaction.transactionTypeId)
+        ) {
+          // Para vendas/saídas
+          quantity -= transaction.quantity;
+          if (quantity < 0) quantity = 0;
+          // Preço médio não muda em vendas
+        }
+      }
 
       // Calcular valores investidos e realizados sempre, independente do saldo atual
       let investedValue = 0;
@@ -321,13 +353,42 @@ export class PlatformsService {
       const asset = assetMap.get(assetId);
       if (!asset) continue;
 
-      // Usar os métodos do PortfoliosService para calcular quantidade e preço médio
-      const quantity = this.portfoliosService.calculateTotalQuantity(
-        assetTransactionsList,
-      );
-      const averagePrice = this.portfoliosService.calculateAveragePrice(
-        assetTransactionsList,
-      );
+      // Calcular quantidade total e preço médio usando lógica manual
+      let quantity = 0;
+      let averagePrice = 0;
+      let totalInvestedValue = 0;
+
+      // Calcular valores simulando a lógica de TransactionService
+      for (const transaction of assetTransactionsList) {
+        const transactionValue = transaction.quantity * transaction.unitPrice;
+
+        if (TransactionTypeHelper.isEntrada(transaction.transactionTypeId)) {
+          if (
+            TransactionReasonHelper.isCompra(transaction.transactionReasonId)
+          ) {
+            // Para compras, calcular preço médio ponderado
+            const newTotalValue = totalInvestedValue + transactionValue;
+            const newQuantity = quantity + transaction.quantity;
+
+            if (newQuantity > 0) {
+              averagePrice = newTotalValue / newQuantity;
+              totalInvestedValue = newTotalValue;
+            }
+
+            quantity = newQuantity;
+          } else {
+            // Para outros tipos de entrada (depósitos, transferências)
+            quantity += transaction.quantity;
+          }
+        } else if (
+          TransactionTypeHelper.isSaida(transaction.transactionTypeId)
+        ) {
+          // Para vendas/saídas
+          quantity -= transaction.quantity;
+          if (quantity < 0) quantity = 0;
+          // Preço médio não muda em vendas
+        }
+      }
 
       // Se quantidade for 0 ou negativa, pular ativo
       if (quantity <= 0) continue;

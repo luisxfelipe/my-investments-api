@@ -20,12 +20,6 @@ export class PortfolioResponseDto {
   @ApiProperty({ description: 'Saving Goal ID', required: false })
   savingGoalId?: number | null;
 
-  @ApiProperty({ description: 'Current Balance' })
-  currentBalance: number;
-
-  @ApiProperty({ description: 'Average Price' })
-  averagePrice: number;
-
   @ApiProperty({ description: 'Asset', type: AssetResponseDto })
   asset?: AssetResponseDto;
 
@@ -41,8 +35,6 @@ export class PortfolioResponseDto {
     this.assetId = portfolio.assetId;
     this.platformId = portfolio.platformId;
     this.savingGoalId = portfolio.savingGoalId;
-    this.currentBalance = Number(portfolio.currentBalance);
-    this.averagePrice = Number(portfolio.averagePrice);
 
     if (portfolio.asset) {
       this.asset = new AssetResponseDto(portfolio.asset);
