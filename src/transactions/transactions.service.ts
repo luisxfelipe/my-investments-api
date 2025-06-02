@@ -192,6 +192,9 @@ export class TransactionsService {
     // Verifica se a transação existe e pertence ao usuário
     const transaction = await this.findOne(id, userId);
 
+    // ✅ VALIDAÇÃO DE ORDEM CRONOLÓGICA: Verificar se é a última transação do portfólio
+    await this.validateIsLastTransaction(id, transaction.portfolioId);
+
     // ✅ VALIDAÇÃO SEGURA: Verificar se o portfolio da transação ainda existe e pertence ao usuário
     await this.portfoliosService.findOne(transaction.portfolioId, userId);
 
@@ -349,6 +352,9 @@ export class TransactionsService {
     // Verifica se a transação existe e pertence ao usuário
     const transaction = await this.findOne(id, userId);
     const portfolioId = transaction.portfolioId;
+
+    // ✅ VALIDAÇÃO DE ORDEM CRONOLÓGICA: Verificar se é a última transação do portfólio
+    await this.validateIsLastTransaction(id, transaction.portfolioId);
 
     // Usa softDelete em vez de remove para fazer soft delete
     await this.repository.softDelete(id);
@@ -731,5 +737,28 @@ export class TransactionsService {
       sourceTransaction: savedSourceTransaction,
       targetTransaction: savedTargetTransaction,
     };
+  }
+
+  /**
+   * Valida se a transação é a última (mais recente) transação do portfólio
+   * Apenas a última transação pode ser editada para manter a integridade cronológica
+   */
+  async validateIsLastTransaction(
+    transactionId: number,
+    portfolioId: number,
+  ): Promise<void> {
+    const lastTransaction = await this.repository
+      .createQueryBuilder('transaction')
+      .where('transaction.portfolioId = :portfolioId', { portfolioId })
+      .orderBy('transaction.transactionDate', 'DESC')
+      .addOrderBy('transaction.createdAt', 'DESC')
+      .limit(1)
+      .getOne();
+
+    if (!lastTransaction || lastTransaction.id !== transactionId) {
+      throw new BadRequestException(
+        'Only the most recent transaction in the portfolio can be edited. Please edit transactions in chronological order.',
+      );
+    }
   }
 }
