@@ -10,6 +10,7 @@ import {
   IsString,
   Min,
 } from 'class-validator';
+import { DecimalPrecision } from '../../decorators/decimal-precision.decorator';
 
 export class CreateTransactionDto {
   @ApiProperty({ description: 'Portfolio ID' })
@@ -34,12 +35,18 @@ export class CreateTransactionDto {
   @IsNotEmpty({ message: 'Quantity is required' })
   @IsNumber({}, { message: 'Quantity must be a number' })
   @IsPositive({ message: 'Quantity must be a positive number' })
+  @DecimalPrecision(8, {
+    message: 'Quantity cannot have more than 8 decimal places',
+  })
   quantity: number;
 
   @ApiProperty({ description: 'Unit price of the asset' })
   @IsNotEmpty({ message: 'Unit price is required' })
   @IsNumber({}, { message: 'Unit price must be a number' })
   @Min(0, { message: 'Unit price must be zero or a positive number' })
+  @DecimalPrecision(8, {
+    message: 'Unit price cannot have more than 8 decimal places',
+  })
   unitPrice: number;
 
   @ApiProperty({ description: 'Transaction date', type: Date })
@@ -52,6 +59,9 @@ export class CreateTransactionDto {
   @IsOptional()
   @IsNumber({}, { message: 'Fee must be a number' })
   @Min(0, { message: 'Fee must be zero or a positive number' })
+  @DecimalPrecision(8, {
+    message: 'Fee cannot have more than 8 decimal places',
+  })
   fee?: number;
 
   @ApiProperty({

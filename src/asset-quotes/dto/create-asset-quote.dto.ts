@@ -8,6 +8,7 @@ import {
   IsNumber,
   IsOptional,
 } from 'class-validator';
+import { DecimalPrecision } from '../../decorators/decimal-precision.decorator';
 
 export class CreateAssetQuoteDto {
   @ApiProperty({ description: 'Asset ID' })
@@ -20,6 +21,9 @@ export class CreateAssetQuoteDto {
   @IsNotEmpty({ message: 'Asset price is required' })
   @IsNumber({}, { message: 'Asset price must be a number' })
   @IsPositive({ message: 'Asset price must be positive' })
+  @DecimalPrecision(6, {
+    message: 'Asset price cannot have more than 6 decimal places',
+  })
   @Transform(({ value }: { value: string | number }) => {
     const num = typeof value === 'string' ? parseFloat(value) : value;
     if (isNaN(num) || num <= 0) {

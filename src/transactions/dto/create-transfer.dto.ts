@@ -10,6 +10,7 @@ import {
   MaxLength,
 } from 'class-validator';
 import { Type } from 'class-transformer';
+import { DecimalPrecision } from '../../decorators/decimal-precision.decorator';
 
 export class CreateTransferDto {
   @ApiProperty({
@@ -35,6 +36,9 @@ export class CreateTransferDto {
   @IsNumber()
   @IsPositive()
   @IsNotEmpty()
+  @DecimalPrecision(8, {
+    message: 'Amount cannot have more than 8 decimal places',
+  })
   quantity: number;
 
   @ApiProperty({
@@ -49,11 +53,12 @@ export class CreateTransferDto {
   @ApiProperty({
     description: 'Fee (optional)',
     example: 0,
-    required: false,
   })
-  @IsNumber()
-  @IsPositive()
   @IsOptional()
+  @IsNumber()
+  @DecimalPrecision(8, {
+    message: 'Fee cannot have more than 8 decimal places',
+  })
   fee?: number;
 
   @ApiProperty({
