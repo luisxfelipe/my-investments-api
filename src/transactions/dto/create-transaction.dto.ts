@@ -8,6 +8,7 @@ import {
   IsOptional,
   IsPositive,
   IsString,
+  Min,
 } from 'class-validator';
 
 export class CreateTransactionDto {
@@ -32,7 +33,7 @@ export class CreateTransactionDto {
   @ApiProperty({ description: 'Unit price of the asset' })
   @IsNotEmpty({ message: 'Unit price is required' })
   @IsNumber({}, { message: 'Unit price must be a number' })
-  @IsPositive({ message: 'Unit price must be a positive number' })
+  @Min(0, { message: 'Unit price must be zero or a positive number' })
   unitPrice: number;
 
   @ApiProperty({ description: 'Transaction date', type: Date })
@@ -44,7 +45,7 @@ export class CreateTransactionDto {
   @ApiProperty({ description: 'Fee paid for the transaction', required: false })
   @IsOptional()
   @IsNumber({}, { message: 'Fee must be a number' })
-  @IsPositive({ message: 'Fee must be a positive number' })
+  @Min(0, { message: 'Fee must be zero or a positive number' })
   fee?: number;
 
   @ApiProperty({
