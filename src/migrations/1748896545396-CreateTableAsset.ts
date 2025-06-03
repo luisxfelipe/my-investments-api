@@ -31,17 +31,17 @@ export class CreateTableAsset1748896545396 implements MigrationInterface {
             isNullable: true,
           },
           {
-            name: 'user_id',
-            type: 'int',
-            isNullable: false,
-          },
-          {
             name: 'category_id',
             type: 'int',
             isNullable: false,
           },
           {
             name: 'asset_type_id',
+            type: 'int',
+            isNullable: false,
+          },
+          {
+            name: 'user_id',
             type: 'int',
             isNullable: false,
           },
