@@ -23,7 +23,10 @@ import { AssetsService } from 'src/assets/assets.service';
 import { AssetQuotesService } from 'src/asset-quotes/asset-quotes.service';
 import { Transaction } from 'src/transactions/entities/transaction.entity';
 import { PortfoliosService } from 'src/portfolios/portfolios.service';
-import { PortfolioCalculationsService } from 'src/portfolios/portfolio-calculations.service';
+import {
+  PortfolioCalculationsService,
+  AssetMetrics,
+} from 'src/portfolios/portfolio-calculations.service';
 
 @Injectable()
 export class PlatformsService {
@@ -187,8 +190,11 @@ export class PlatformsService {
       return new PlatformDashboardResponseDto(platform, 0, 0, 0, 0);
     }
 
-    // Usar o método auxiliar para calcular resumo da plataforma
-    const platformSummary = await this.calculatePlatformSummary(transactions);
+    // ✅ USAR DIRETAMENTE o PortfolioCalculationsService sem wrapper desnecessário
+    const assetMetrics =
+      await this.extractAssetMetricsFromTransactions(transactions);
+    const platformSummary =
+      this.portfolioCalculationsService.calculatePlatformSummary(assetMetrics);
 
     return new PlatformDashboardResponseDto(
       platform,
@@ -273,19 +279,16 @@ export class PlatformsService {
   }
 
   /**
-   * Método auxiliar para calcular resumo de uma plataforma usando PortfolioCalculationsService
-   * Substitui toda a lógica duplicada de cálculo de preço médio ponderado
+   * ✅ MÉTODO AUXILIAR: Extrai métricas de ativos de transações
+   * Centraliza a lógica de agrupamento e cálculo de métricas de ativos
+   * Reutilizado por calculateAssetMetricsForPlatform e getPlatformDashboard
    *
-   * @param transactions Lista de transações da plataforma
-   * @returns Resumo calculado da plataforma
+   * @param transactions Lista de transações
+   * @returns Array de métricas de ativos calculadas
    */
-  private async calculatePlatformSummary(transactions: Transaction[]): Promise<{
-    totalAssets: number;
-    totalInvested: number;
-    totalCurrentValue: number;
-    totalRealizedGainLoss: number;
-    assetsMetrics: any[];
-  }> {
+  private async extractAssetMetricsFromTransactions(
+    transactions: Transaction[],
+  ): Promise<AssetMetrics[]> {
     // Agrupar transações por ativo
     const assetTransactions = new Map<number, Transaction[]>();
     for (const transaction of transactions) {
@@ -302,13 +305,9 @@ export class PlatformsService {
       await this.assetQuotesService.findLatestForAssetIds(assetIds);
     const quotesMap = new Map(quotes.map((quote) => [quote.assetId, quote]));
 
-    let totalAssets = 0;
-    let totalInvested = 0;
-    let totalCurrentValue = 0;
-    let totalRealizedGainLoss = 0;
-    const assetsMetrics: any[] = [];
+    const assetMetrics: AssetMetrics[] = [];
 
-    // Usar PortfolioCalculationsService para cada ativo
+    // Calcular métricas para cada ativo usando PortfolioCalculationsService
     for (const [assetId, assetTransactionsList] of assetTransactions) {
       // Ordenar transações por data para cálculo correto
       const sortedTransactions = assetTransactionsList.sort((a, b) => {
@@ -324,35 +323,24 @@ export class PlatformsService {
         ? Number(currentQuote.price)
         : undefined;
 
-      // Usar PortfolioCalculationsService para calcular métricas
-      const assetMetrics =
-        this.portfolioCalculationsService.calculateAssetMetrics(
-          sortedTransactions,
-          currentPrice,
-        );
+      // ✅ USAR PortfolioCalculationsService para calcular métricas
+      const metrics = this.portfolioCalculationsService.calculateAssetMetrics(
+        sortedTransactions,
+        currentPrice,
+      );
 
-      // Apenas contar ativos com saldo positivo
-      if (assetMetrics.quantity > 0) {
-        totalAssets++;
-        totalInvested += assetMetrics.totalInvested;
-        totalCurrentValue += assetMetrics.currentValue;
-        totalRealizedGainLoss += assetMetrics.realizedGainLoss;
-        assetsMetrics.push(assetMetrics);
+      // Apenas incluir ativos com saldo positivo
+      if (metrics.quantity > 0) {
+        assetMetrics.push(metrics);
       }
     }
 
-    return {
-      totalAssets,
-      totalInvested,
-      totalCurrentValue,
-      totalRealizedGainLoss,
-      assetsMetrics,
-    };
+    return assetMetrics;
   }
 
   /**
-   * Método auxiliar para calcular métricas de ativos individuais usando PortfolioCalculationsService
-   * Substitui lógica duplicada no método getPlatformAssets
+   * ✅ REFATORADO: Método auxiliar para calcular métricas de ativos individuais
+   * Agora usa extractAssetMetricsFromTransactions() para eliminar duplicação
    *
    * @param transactions Lista de transações da plataforma
    * @param userId ID do usuário
@@ -362,62 +350,27 @@ export class PlatformsService {
     transactions: Transaction[],
     userId: number,
   ): Promise<PlatformAssetResponseDto[]> {
-    // Agrupar transações por ativo
-    const assetTransactions = new Map<number, Transaction[]>();
-    for (const transaction of transactions) {
-      const assetId = transaction.portfolio.assetId;
-      if (!assetTransactions.has(assetId)) {
-        assetTransactions.set(assetId, []);
-      }
-      assetTransactions.get(assetId)!.push(transaction);
-    }
+    // ✅ USAR método auxiliar para extrair métricas de ativos
+    const assetMetrics =
+      await this.extractAssetMetricsFromTransactions(transactions);
 
     // Buscar informações dos ativos únicos
-    const assetIds = Array.from(assetTransactions.keys());
+    const assetIds = assetMetrics.map((metric) => metric.assetId);
     const assets = await this.assetsService.findByIds(assetIds, userId);
     const assetMap = new Map(assets.map((asset) => [asset.id, asset]));
 
-    // Buscar cotações atuais dos ativos
-    const quotes =
-      await this.assetQuotesService.findLatestForAssetIds(assetIds);
-    const quotesMap = new Map(quotes.map((quote) => [quote.assetId, quote]));
-
     const assetResponses: PlatformAssetResponseDto[] = [];
 
-    // Usar PortfolioCalculationsService para cada ativo
-    for (const [assetId, assetTransactionsList] of assetTransactions) {
-      const asset = assetMap.get(assetId);
+    // Transformar métricas em responses de ativos
+    for (const metrics of assetMetrics) {
+      const asset = assetMap.get(metrics.assetId);
       if (!asset) continue;
-
-      // Ordenar transações por data
-      const sortedTransactions = assetTransactionsList.sort((a, b) => {
-        return (
-          new Date(a.transactionDate).getTime() -
-          new Date(b.transactionDate).getTime()
-        );
-      });
-
-      // Buscar preço atual
-      const currentQuote = quotesMap.get(assetId);
-      const currentPrice = currentQuote
-        ? Number(currentQuote.price)
-        : undefined;
-
-      // Usar PortfolioCalculationsService para calcular métricas
-      const assetMetrics =
-        this.portfolioCalculationsService.calculateAssetMetrics(
-          sortedTransactions,
-          currentPrice,
-        );
-
-      // Se quantidade for 0 ou negativa, pular ativo
-      if (assetMetrics.quantity <= 0) continue;
 
       // Calcular variação percentual
       const priceChangePercentage =
-        assetMetrics.currentPrice && assetMetrics.averagePrice > 0
-          ? ((assetMetrics.currentPrice - assetMetrics.averagePrice) /
-              assetMetrics.averagePrice) *
+        metrics.currentPrice && metrics.averagePrice > 0
+          ? ((metrics.currentPrice - metrics.averagePrice) /
+              metrics.averagePrice) *
             100
           : 0;
 
@@ -434,11 +387,11 @@ export class PlatformsService {
       const assetResponse = new PlatformAssetResponseDto({
         code: asset.code,
         type: typeResponse,
-        currentBalance: assetMetrics.quantity,
-        averagePurchasePrice: assetMetrics.averagePrice,
-        latestMarketPrice: assetMetrics.currentPrice || 0,
+        currentBalance: metrics.quantity,
+        averagePurchasePrice: metrics.averagePrice,
+        latestMarketPrice: metrics.currentPrice || 0,
         priceChangePercentage: Number(priceChangePercentage.toFixed(2)),
-        totalMarketValue: assetMetrics.currentValue,
+        totalMarketValue: metrics.currentValue,
       });
 
       assetResponses.push(assetResponse);
