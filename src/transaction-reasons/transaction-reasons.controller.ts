@@ -7,17 +7,21 @@ import {
   Param,
   Delete,
   UseGuards,
+  Query,
 } from '@nestjs/common';
 import {
   ApiTags,
   ApiOperation,
   ApiResponse,
   ApiBearerAuth,
+  ApiQuery,
 } from '@nestjs/swagger';
 import { TransactionReasonsService } from './transaction-reasons.service';
 import { CreateTransactionReasonDto } from './dto/create-transaction-reason.dto';
 import { UpdateTransactionReasonDto } from './dto/update-transaction-reason.dto';
 import { TransactionReasonResponseDto } from './dto/transaction-reason-response.dto';
+import { PaginatedTransactionReasonResponseDto } from './dto/paginated-transaction-reason-response.dto';
+import { PaginatedResponseDto } from '../dtos/paginated-response.dto';
 import { AuthGuard } from '../auth/auth.guard';
 
 @ApiTags('Transaction Reasons')
@@ -57,6 +61,52 @@ export class TransactionReasonsController {
     const transactionReasons = await this.transactionReasonsService.findAll();
     return transactionReasons.map(
       (reason) => new TransactionReasonResponseDto(reason),
+    );
+  }
+
+  @Get('pages')
+  @ApiOperation({ summary: 'Get all transaction reasons with pagination' })
+  @ApiQuery({
+    name: 'take',
+    required: false,
+    description: 'Number of items per page',
+    example: 10,
+  })
+  @ApiQuery({
+    name: 'page',
+    required: false,
+    description: 'Page number',
+    example: 1,
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Paginated list of transaction reasons',
+    type: PaginatedTransactionReasonResponseDto,
+  })
+  async findAllWithPagination(
+    @Query('take') take: string = '10',
+    @Query('page') page: string = '1',
+  ): Promise<PaginatedResponseDto<TransactionReasonResponseDto>> {
+    const takeNumber = parseInt(take);
+    const pageNumber = parseInt(page);
+
+    const transactionReasons =
+      await this.transactionReasonsService.findAllWithPagination(
+        takeNumber,
+        pageNumber,
+      );
+
+    // Transformar as transaction reasons em DTOs de resposta
+    const transactionReasonDtos = transactionReasons.data.map(
+      (reason) => new TransactionReasonResponseDto(reason),
+    );
+
+    // Retornar o objeto PaginatedResponseDto com os dados transformados
+    return new PaginatedResponseDto<TransactionReasonResponseDto>(
+      transactionReasonDtos,
+      transactionReasons.meta.totalItems,
+      transactionReasons.meta.itemsPerPage,
+      transactionReasons.meta.currentPage,
     );
   }
 

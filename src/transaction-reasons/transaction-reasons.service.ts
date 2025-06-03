@@ -9,6 +9,7 @@ import { CreateTransactionReasonDto } from './dto/create-transaction-reason.dto'
 import { UpdateTransactionReasonDto } from './dto/update-transaction-reason.dto';
 import { TransactionReason } from './entities/transaction-reason.entity';
 import { TransactionType } from '../transaction-types/entities/transaction-type.entity';
+import { PaginatedResponseDto } from '../dtos/paginated-response.dto';
 
 @Injectable()
 export class TransactionReasonsService {
@@ -55,6 +56,22 @@ export class TransactionReasonsService {
       relations: ['transactionType'],
       order: { transactionTypeId: 'ASC', reason: 'ASC' },
     });
+  }
+
+  async findAllWithPagination(
+    take = 10,
+    page = 1,
+  ): Promise<PaginatedResponseDto<TransactionReason>> {
+    const skip = (page - 1) * take;
+
+    const [transactionReasons, total] = await this.repository.findAndCount({
+      relations: ['transactionType'],
+      take,
+      skip,
+      order: { transactionTypeId: 'ASC', reason: 'ASC' },
+    });
+
+    return new PaginatedResponseDto(transactionReasons, total, take, page);
   }
 
   async findByTransactionType(
