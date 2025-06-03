@@ -17,7 +17,7 @@ import {
 import { TransactionReasonsService } from './transaction-reasons.service';
 import { CreateTransactionReasonDto } from './dto/create-transaction-reason.dto';
 import { UpdateTransactionReasonDto } from './dto/update-transaction-reason.dto';
-import { TransactionReason } from './entities/transaction-reason.entity';
+import { TransactionReasonResponseDto } from './dto/transaction-reason-response.dto';
 import { AuthGuard } from '../auth/auth.guard';
 
 @ApiTags('Transaction Reasons')
@@ -34,13 +34,16 @@ export class TransactionReasonsController {
   @ApiResponse({
     status: 201,
     description: 'Transaction reason created successfully',
-    type: TransactionReason,
+    type: TransactionReasonResponseDto,
   })
   @ApiResponse({ status: 400, description: 'Bad Request' })
-  create(
+  async create(
     @Body() createTransactionReasonDto: CreateTransactionReasonDto,
-  ): Promise<TransactionReason> {
-    return this.transactionReasonsService.create(createTransactionReasonDto);
+  ): Promise<TransactionReasonResponseDto> {
+    const transactionReason = await this.transactionReasonsService.create(
+      createTransactionReasonDto,
+    );
+    return new TransactionReasonResponseDto(transactionReason);
   }
 
   @Get()
@@ -48,10 +51,13 @@ export class TransactionReasonsController {
   @ApiResponse({
     status: 200,
     description: 'List of all transaction reasons',
-    type: [TransactionReason],
+    type: [TransactionReasonResponseDto],
   })
-  findAll(): Promise<TransactionReason[]> {
-    return this.transactionReasonsService.findAll();
+  async findAll(): Promise<TransactionReasonResponseDto[]> {
+    const transactionReasons = await this.transactionReasonsService.findAll();
+    return transactionReasons.map(
+      (reason) => new TransactionReasonResponseDto(reason),
+    );
   }
 
   @Get('by-type/:transactionTypeId')
@@ -59,14 +65,18 @@ export class TransactionReasonsController {
   @ApiResponse({
     status: 200,
     description: 'List of transaction reasons for the specified type',
-    type: [TransactionReason],
+    type: [TransactionReasonResponseDto],
   })
   @ApiResponse({ status: 404, description: 'Transaction type not found' })
-  findByTransactionType(
+  async findByTransactionType(
     @Param('transactionTypeId') transactionTypeId: string,
-  ): Promise<TransactionReason[]> {
-    return this.transactionReasonsService.findByTransactionType(
-      +transactionTypeId,
+  ): Promise<TransactionReasonResponseDto[]> {
+    const transactionReasons =
+      await this.transactionReasonsService.findByTransactionType(
+        +transactionTypeId,
+      );
+    return transactionReasons.map(
+      (reason) => new TransactionReasonResponseDto(reason),
     );
   }
 
@@ -75,11 +85,14 @@ export class TransactionReasonsController {
   @ApiResponse({
     status: 200,
     description: 'Transaction reason found',
-    type: TransactionReason,
+    type: TransactionReasonResponseDto,
   })
   @ApiResponse({ status: 404, description: 'Transaction reason not found' })
-  findOne(@Param('id') id: string): Promise<TransactionReason> {
-    return this.transactionReasonsService.findOne(+id);
+  async findOne(
+    @Param('id') id: string,
+  ): Promise<TransactionReasonResponseDto> {
+    const transactionReason = await this.transactionReasonsService.findOne(+id);
+    return new TransactionReasonResponseDto(transactionReason);
   }
 
   @Patch(':id')
@@ -87,18 +100,19 @@ export class TransactionReasonsController {
   @ApiResponse({
     status: 200,
     description: 'Transaction reason updated successfully',
-    type: TransactionReason,
+    type: TransactionReasonResponseDto,
   })
   @ApiResponse({ status: 404, description: 'Transaction reason not found' })
   @ApiResponse({ status: 400, description: 'Bad Request' })
-  update(
+  async update(
     @Param('id') id: string,
     @Body() updateTransactionReasonDto: UpdateTransactionReasonDto,
-  ): Promise<TransactionReason> {
-    return this.transactionReasonsService.update(
+  ): Promise<TransactionReasonResponseDto> {
+    const transactionReason = await this.transactionReasonsService.update(
       +id,
       updateTransactionReasonDto,
     );
+    return new TransactionReasonResponseDto(transactionReason);
   }
 
   @Delete(':id')
