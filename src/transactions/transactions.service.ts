@@ -12,6 +12,7 @@ import { Repository } from 'typeorm';
 import { TransactionReasonsService } from 'src/transaction-reasons/transaction-reasons.service';
 import { TransactionTypesService } from 'src/transaction-types/transaction-types.service';
 import { PortfoliosService } from 'src/portfolios/portfolios.service';
+import { PortfolioCalculationsService } from 'src/portfolios/portfolio-calculations.service';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Transaction } from './entities/transaction.entity';
 import { PaginatedResponseDto } from 'src/dtos/paginated-response.dto';
@@ -33,6 +34,7 @@ export class TransactionsService {
     private readonly transactionReasonsService: TransactionReasonsService,
     @Inject(forwardRef(() => TransactionTypesService))
     private readonly transactionTypesService: TransactionTypesService,
+    private readonly portfolioCalculationsService: PortfolioCalculationsService, // Injetar o serviço de cálculos de portfólio
   ) {}
 
   async create(
@@ -58,7 +60,7 @@ export class TransactionsService {
 
     // ✅ VALIDAÇÃO SEGURA: Verificar saldo para vendas (SAÍDA)
     if (TransactionTypeHelper.isSaida(transactionReason.transactionTypeId)) {
-      await this.portfoliosService.validateSaleTransaction(
+      await this.validateSaleTransaction(
         createTransactionDto.portfolioId,
         createTransactionDto.quantity,
         userId,
@@ -284,7 +286,7 @@ export class TransactionsService {
         }
       } else {
         // Para mudança para venda ou nova venda, usar validação segura
-        await this.portfoliosService.validateSaleTransaction(
+        await this.validateSaleTransaction(
           portfolioId,
           newTransactionQuantity,
           userId,
@@ -969,5 +971,85 @@ export class TransactionsService {
     }
 
     return { newBalance, newAvgPrice };
+  }
+
+  /**
+   * Obtém o saldo atual de um portfolio de forma otimizada
+   * Usa PortfolioCalculationsService para evitar duplicação de lógica
+   *
+   * @param portfolioId ID do portfolio
+   * @returns Saldo atual do portfolio
+   */
+  async getCurrentBalanceForPortfolio(portfolioId: number): Promise<number> {
+    // Buscar todas as transações do portfolio ordenadas por data
+    const transactions = await this.repository.find({
+      where: { portfolioId },
+      order: {
+        transactionDate: 'ASC',
+        id: 'ASC',
+      },
+      relations: ['portfolio', 'portfolio.asset'],
+    });
+
+    // Usar o service de cálculos centralizado
+    return this.portfolioCalculationsService.calculateCurrentBalance(
+      transactions,
+    );
+  }
+
+  /**
+   * Obtém o preço médio atual de um portfolio de forma otimizada
+   * Usa PortfolioCalculationsService para evitar duplicação de lógica
+   *
+   * @param portfolioId ID do portfolio
+   * @returns Preço médio atual do portfolio
+   */
+  async getCurrentAveragePriceForPortfolio(
+    portfolioId: number,
+  ): Promise<number> {
+    // Buscar todas as transações do portfolio ordenadas por data
+    const transactions = await this.repository.find({
+      where: { portfolioId },
+      order: {
+        transactionDate: 'ASC',
+        id: 'ASC',
+      },
+      relations: ['portfolio', 'portfolio.asset'],
+    });
+
+    // Usar o service de cálculos centralizado
+    return this.portfolioCalculationsService.calculateCurrentAveragePrice(
+      transactions,
+    );
+  }
+
+  /**
+   * ✅ MÉTODO MOVIDO: Validar transação de venda usando PortfolioCalculationsService
+   * Movido do PortfoliosService para TransactionsService onde faz mais sentido arquiteturalmente
+   */
+  async validateSaleTransaction(
+    portfolioId: number,
+    saleAmount: number,
+    userId?: number,
+  ): Promise<void> {
+    // Verificar se o portfolio existe e pertence ao usuário (se userId fornecido)
+    if (userId) {
+      await this.portfoliosService.findOne(portfolioId, userId);
+    }
+
+    // Buscar todas as transações do portfolio para cálculo otimizado
+    const transactions = await this.findAllByPortfolioId(portfolioId);
+
+    // Usar serviço de cálculos centralizado para validação
+    const validationResult =
+      this.portfolioCalculationsService.validateTransaction(
+        transactions,
+        'SELL',
+        saleAmount,
+      );
+
+    if (!validationResult.isValid) {
+      throw new BadRequestException(validationResult.message);
+    }
   }
 }

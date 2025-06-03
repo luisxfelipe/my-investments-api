@@ -1,6 +1,7 @@
 import { Module, forwardRef } from '@nestjs/common';
 import { PortfoliosService } from './portfolios.service';
 import { PortfoliosController } from './portfolios.controller';
+import { PortfolioCalculationsService } from './portfolio-calculations.service';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { Portfolio } from './entities/portfolio.entity';
 import { UsersModule } from 'src/users/users.module';
@@ -19,7 +20,7 @@ import { TransactionsModule } from 'src/transactions/transactions.module';
     forwardRef(() => TransactionsModule),
   ],
   controllers: [PortfoliosController],
-  providers: [PortfoliosService],
-  exports: [PortfoliosService],
+  providers: [PortfoliosService, PortfolioCalculationsService],
+  exports: [PortfoliosService, PortfolioCalculationsService],
 })
 export class PortfoliosModule {}

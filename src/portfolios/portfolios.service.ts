@@ -15,6 +15,7 @@ import { UsersService } from 'src/users/users.service';
 import { Repository, IsNull } from 'typeorm';
 import { InjectRepository } from '@nestjs/typeorm';
 import { TransactionsService } from 'src/transactions/transactions.service';
+import { PortfolioCalculationsService } from './portfolio-calculations.service';
 import { PaginatedResponseDto } from '../dtos/paginated-response.dto';
 
 @Injectable()
@@ -31,6 +32,7 @@ export class PortfoliosService {
     private readonly savingsGoalsService: SavingsGoalsService,
     @Inject(forwardRef(() => TransactionsService))
     private readonly transactionsService: TransactionsService,
+    private readonly portfolioCalculationsService: PortfolioCalculationsService,
   ) {}
 
   async create(
@@ -306,65 +308,6 @@ export class PortfoliosService {
     return this.repository.count({
       where: { savingGoalId },
     });
-  }
-
-  /**
-   * Obtém o saldo atual da última transação
-   */
-  async getCurrentBalance(portfolioId: number): Promise<number> {
-    // Buscar a última transação para obter o saldo atual
-    const lastTransaction =
-      await this.transactionsService.findLastTransactionForPortfolio(
-        portfolioId,
-      );
-
-    // Retornar o saldo da última transação ou 0 se não houver transações
-    return lastTransaction ? lastTransaction.currentBalance : 0;
-  }
-
-  /**
-   * Obtém o preço médio da última transação
-   */
-  async getAveragePrice(portfolioId: number): Promise<number> {
-    // Buscar a última transação para obter o preço médio atual
-    const lastTransaction =
-      await this.transactionsService.findLastTransactionForPortfolio(
-        portfolioId,
-      );
-
-    // Retornar o preço médio da última transação ou 0 se não houver transações
-    return lastTransaction ? lastTransaction.averagePrice : 0;
-  }
-
-  /**
-   * Validação segura para vendas: usa o saldo atual da última transação
-   * Prioriza segurança sobre performance em operações críticas
-   */
-  async validateSaleTransaction(
-    portfolioId: number,
-    saleAmount: number,
-    userId?: number,
-  ): Promise<void> {
-    // Verificar se o portfolio existe e pertence ao usuário (se userId fornecido)
-    if (userId) {
-      await this.findOne(portfolioId, userId);
-    }
-
-    // Buscar a última transação para obter o saldo atual
-    const lastTransaction =
-      await this.transactionsService.findLastTransactionForPortfolio(
-        portfolioId,
-      );
-
-    // Se não houver transações ou saldo insuficiente
-    if (!lastTransaction || lastTransaction.currentBalance < saleAmount) {
-      const availableBalance = lastTransaction
-        ? lastTransaction.currentBalance
-        : 0;
-      throw new BadRequestException(
-        `Insufficient balance for sale. Available: ${availableBalance}, Required: ${saleAmount}`,
-      );
-    }
   }
 
   /**
