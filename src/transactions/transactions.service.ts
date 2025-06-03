@@ -60,11 +60,26 @@ export class TransactionsService {
 
     // ✅ VALIDAÇÃO SEGURA: Verificar saldo para vendas (SAÍDA)
     if (TransactionTypeHelper.isSaida(transactionReason.transactionTypeId)) {
-      await this.validateSaleTransaction(
+      // Verificar se o portfolio existe e pertence ao usuário
+      await this.portfoliosService.findOne(
         createTransactionDto.portfolioId,
-        createTransactionDto.quantity,
         userId,
       );
+
+      // Buscar transações e validar saldo disponível
+      const transactions = await this.findAllByPortfolioId(
+        createTransactionDto.portfolioId,
+      );
+      const validationResult =
+        this.portfolioCalculationsService.validateTransaction(
+          transactions,
+          'SELL',
+          createTransactionDto.quantity,
+        );
+
+      if (!validationResult.isValid) {
+        throw new BadRequestException(validationResult.message);
+      }
     }
 
     // Calcular novos valores de saldo e preço médio
@@ -286,11 +301,21 @@ export class TransactionsService {
         }
       } else {
         // Para mudança para venda ou nova venda, usar validação segura
-        await this.validateSaleTransaction(
-          portfolioId,
-          newTransactionQuantity,
-          userId,
-        );
+        // Verificar se o portfolio existe e pertence ao usuário
+        await this.portfoliosService.findOne(portfolioId, userId);
+
+        // Buscar transações e validar saldo disponível
+        const transactions = await this.findAllByPortfolioId(portfolioId);
+        const validationResult =
+          this.portfolioCalculationsService.validateTransaction(
+            transactions,
+            'SELL',
+            newTransactionQuantity,
+          );
+
+        if (!validationResult.isValid) {
+          throw new BadRequestException(validationResult.message);
+        }
       }
     }
 
@@ -1021,35 +1046,5 @@ export class TransactionsService {
     return this.portfolioCalculationsService.calculateCurrentAveragePrice(
       transactions,
     );
-  }
-
-  /**
-   * ✅ MÉTODO MOVIDO: Validar transação de venda usando PortfolioCalculationsService
-   * Movido do PortfoliosService para TransactionsService onde faz mais sentido arquiteturalmente
-   */
-  async validateSaleTransaction(
-    portfolioId: number,
-    saleAmount: number,
-    userId?: number,
-  ): Promise<void> {
-    // Verificar se o portfolio existe e pertence ao usuário (se userId fornecido)
-    if (userId) {
-      await this.portfoliosService.findOne(portfolioId, userId);
-    }
-
-    // Buscar todas as transações do portfolio para cálculo otimizado
-    const transactions = await this.findAllByPortfolioId(portfolioId);
-
-    // Usar serviço de cálculos centralizado para validação
-    const validationResult =
-      this.portfolioCalculationsService.validateTransaction(
-        transactions,
-        'SELL',
-        saleAmount,
-      );
-
-    if (!validationResult.isValid) {
-      throw new BadRequestException(validationResult.message);
-    }
   }
 }
