@@ -228,8 +228,8 @@ export class PlatformsService {
       return new PaginatedPlatformAssetsResponseDto(meta, []);
     }
 
-    // Usar método auxiliar para calcular métricas dos ativos usando PortfolioCalculationsService
-    const assetResponses = await this.calculateAssetMetricsForPlatform(
+    // Usar método auxiliar para formatar métricas dos ativos em responses da API
+    const assetResponses = await this.formatPlatformAssetsResponse(
       transactions,
       userId,
     );
@@ -280,7 +280,7 @@ export class PlatformsService {
   /**
    * ✅ MÉTODO AUXILIAR: Extrai métricas de ativos de transações
    * Centraliza a lógica de agrupamento e cálculo de métricas de ativos
-   * Reutilizado por calculateAssetMetricsForPlatform e getPlatformDashboard
+   * Reutilizado por formatPlatformAssetsResponse e getPlatformDashboard
    *
    * @param transactions Lista de transações
    * @returns Array de métricas de ativos calculadas
@@ -338,14 +338,15 @@ export class PlatformsService {
   }
 
   /**
-   * ✅ REFATORADO: Método auxiliar para calcular métricas de ativos individuais
-   * Agora usa extractAssetMetricsFromTransactions() para eliminar duplicação
+   * ✅ REFATORADO: Formata métricas de ativos em responses para a API da plataforma
+   * RESPONSABILIDADE: Transformação de dados e formatação de resposta (NÃO cálculo)
+   * Usa extractAssetMetricsFromTransactions() para obter métricas calculadas
    *
    * @param transactions Lista de transações da plataforma
    * @param userId ID do usuário
-   * @returns Lista de métricas de ativos
+   * @returns Lista formatada de respostas de ativos da plataforma
    */
-  private async calculateAssetMetricsForPlatform(
+  private async formatPlatformAssetsResponse(
     transactions: Transaction[],
     userId: number,
   ): Promise<PlatformAssetResponseDto[]> {
