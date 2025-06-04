@@ -12,10 +12,10 @@ import { Platform } from './entities/platform.entity';
 import { Repository } from 'typeorm';
 import { PaginatedResponseDto } from 'src/dtos/paginated-response.dto';
 import { PaginationMetaDto } from 'src/dtos/pagination.dto';
-import { PaginatedPlatformAssetsResponseDto } from './dto/paginated-platform-assets-response.dto';
+import { PaginatedPlatformPositionsResponseDto } from './dto/paginated-platform-positions-response.dto';
 import { PlatformDashboardResponseDto } from './dto/platform-dashboard-response.dto';
 import { PaginatedPlatformDashboardResponseDto } from './dto/paginated-platform-dashboard-response.dto';
-import { PlatformAssetResponseDto } from './dto/platform-asset-response.dto';
+import { PlatformPositionResponseDto } from './dto/platform-position-response.dto';
 import { AssetTypeResponseDto } from 'src/asset-types/dto/asset-type-response.dto';
 import { AssetType } from 'src/asset-types/entities/asset-type.entity';
 import { TransactionsService } from 'src/transactions/transactions.service';
@@ -205,14 +205,14 @@ export class PlatformsService {
   }
 
   /**
-   * Busca apenas a lista paginada de ativos de uma plataforma
+   * Busca apenas a lista paginada de posições de uma plataforma
    */
-  async getPlatformAssets(
+  async getPlatformPositions(
     platformId: number,
     userId: number,
     take = 10,
     page = 1,
-  ): Promise<PaginatedPlatformAssetsResponseDto> {
+  ): Promise<PaginatedPlatformPositionsResponseDto> {
     // Verifica se a plataforma existe para este usuário
     await this.findOne(platformId, userId);
 
@@ -225,25 +225,25 @@ export class PlatformsService {
     if (transactions.length === 0) {
       // Se não há transações, retornar lista vazia
       const meta = new PaginationMetaDto(take, 0, page, 0);
-      return new PaginatedPlatformAssetsResponseDto(meta, []);
+      return new PaginatedPlatformPositionsResponseDto(meta, []);
     }
 
-    // Usar método auxiliar para formatar métricas dos ativos em responses da API
-    const assetResponses = await this.formatPlatformAssetsResponse(
+    // Usar método auxiliar para formatar métricas das posições em responses da API
+    const positionResponses = await this.formatPlatformPositionsResponse(
       transactions,
       userId,
     );
 
     // Aplicar paginação
     const skip = (page - 1) * take;
-    const paginatedAssets = assetResponses.slice(skip, skip + take);
-    const total = assetResponses.length;
+    const paginatedPositions = positionResponses.slice(skip, skip + take);
+    const total = positionResponses.length;
 
     // Criar resposta paginada
     const totalPages = Math.ceil(total / take);
     const meta = new PaginationMetaDto(take, total, page, totalPages);
 
-    return new PaginatedPlatformAssetsResponseDto(meta, paginatedAssets);
+    return new PaginatedPlatformPositionsResponseDto(meta, paginatedPositions);
   }
 
   /**
@@ -339,31 +339,31 @@ export class PlatformsService {
   }
 
   /**
-   * ✅ REFATORADO: Formata métricas de ativos em responses para a API da plataforma
+   * ✅ RENOMEADO: Formata métricas de posições em responses para a API da plataforma
    * RESPONSABILIDADE: Transformação de dados e formatação de resposta (NÃO cálculo)
    * Usa calculateGroupedPositionMetrics() para obter métricas calculadas
    *
    * @param transactions Lista de transações da plataforma
    * @param userId ID do usuário
-   * @returns Lista formatada de respostas de ativos da plataforma
+   * @returns Lista formatada de respostas de posições da plataforma
    */
-  private async formatPlatformAssetsResponse(
+  private async formatPlatformPositionsResponse(
     transactions: Transaction[],
     userId: number,
-  ): Promise<PlatformAssetResponseDto[]> {
-    // ✅ USAR método auxiliar para extrair métricas de ativos
-    const assetMetrics =
+  ): Promise<PlatformPositionResponseDto[]> {
+    // ✅ USAR método auxiliar para extrair métricas de posições
+    const positionMetrics =
       await this.calculateGroupedPositionMetrics(transactions);
 
     // Buscar informações dos ativos únicos
-    const assetIds = assetMetrics.map((metric) => metric.assetId);
+    const assetIds = positionMetrics.map((metric) => metric.assetId);
     const assets = await this.assetsService.findByIds(assetIds, userId);
     const assetMap = new Map(assets.map((asset) => [asset.id, asset]));
 
-    const assetResponses: PlatformAssetResponseDto[] = [];
+    const positionResponses: PlatformPositionResponseDto[] = [];
 
-    // Transformar métricas em responses de ativos
-    for (const metrics of assetMetrics) {
+    // Transformar métricas em responses de posições
+    for (const metrics of positionMetrics) {
       const asset = assetMap.get(metrics.assetId);
       if (!asset) continue;
 
@@ -375,7 +375,7 @@ export class PlatformsService {
             100
           : 0;
 
-      // Criar response do ativo
+      // Criar response da posição
       let typeResponse: AssetTypeResponseDto;
       if (asset.assetType) {
         typeResponse = new AssetTypeResponseDto(asset.assetType);
@@ -385,7 +385,7 @@ export class PlatformsService {
         typeResponse = new AssetTypeResponseDto(unknownAssetType);
       }
 
-      const assetResponse = new PlatformAssetResponseDto({
+      const positionResponse = new PlatformPositionResponseDto({
         code: asset.code,
         type: typeResponse,
         currentBalance: metrics.quantity,
@@ -395,13 +395,13 @@ export class PlatformsService {
         totalMarketValue: metrics.currentValue,
       });
 
-      assetResponses.push(assetResponse);
+      positionResponses.push(positionResponse);
     }
 
     // Ordenar por valor total (maior para menor)
-    assetResponses.sort((a, b) => b.totalMarketValue - a.totalMarketValue);
+    positionResponses.sort((a, b) => b.totalMarketValue - a.totalMarketValue);
 
-    return assetResponses;
+    return positionResponses;
   }
 
   /**

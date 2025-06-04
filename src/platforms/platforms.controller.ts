@@ -24,7 +24,7 @@ import { PlatformResponseDto } from './dto/platform-response.dto';
 import { UserDecorator } from 'src/decorators/user.decorator';
 import { PaginatedResponseDto } from 'src/dtos/paginated-response.dto';
 import { PaginatedPlatformResponseDto } from './dto/paginated-platform-response.dto';
-import { PaginatedPlatformAssetsResponseDto } from './dto/paginated-platform-assets-response.dto';
+import { PaginatedPlatformPositionsResponseDto } from './dto/paginated-platform-positions-response.dto';
 import { PlatformDashboardResponseDto } from './dto/platform-dashboard-response.dto';
 import { PaginatedPlatformDashboardResponseDto } from './dto/paginated-platform-dashboard-response.dto';
 
@@ -187,8 +187,10 @@ export class PlatformsController {
     return await this.platformsService.getPlatformDashboard(+id, userId);
   }
 
-  @Get(':id/assets')
-  @ApiOperation({ summary: 'Get platform assets with pagination' })
+  @Get(':id/positions')
+  @ApiOperation({
+    summary: 'Get platform investment positions with pagination',
+  })
   @ApiParam({ name: 'id', description: 'Platform id' })
   @ApiQuery({
     name: 'page',
@@ -204,20 +206,20 @@ export class PlatformsController {
   })
   @ApiResponse({
     status: 200,
-    description: 'Paginated list of platform assets',
-    type: PaginatedPlatformAssetsResponseDto,
+    description: 'Paginated list of platform investment positions with metrics',
+    type: PaginatedPlatformPositionsResponseDto,
   })
   @ApiResponse({ status: 404, description: 'Platform not found' })
-  async getPlatformAssets(
+  async getPlatformPositions(
     @Param('id') id: string,
     @UserDecorator() userId: number,
     @Query('take') take: string = '10',
     @Query('page') page: string = '1',
-  ): Promise<PaginatedPlatformAssetsResponseDto> {
+  ): Promise<PaginatedPlatformPositionsResponseDto> {
     const takeNumber = parseInt(take);
     const pageNumber = parseInt(page);
 
-    return await this.platformsService.getPlatformAssets(
+    return await this.platformsService.getPlatformPositions(
       +id,
       userId,
       takeNumber,

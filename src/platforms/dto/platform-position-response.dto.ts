@@ -1,14 +1,14 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { AssetTypeResponseDto } from '../../asset-types/dto/asset-type-response.dto';
 
-export class PlatformAssetResponseDto {
+export class PlatformPositionResponseDto {
   @ApiProperty({ description: 'Asset Code' })
   code: string;
 
   @ApiProperty({ description: 'Asset Type', type: () => AssetTypeResponseDto })
   type: AssetTypeResponseDto;
 
-  @ApiProperty({ description: 'Current Balance' })
+  @ApiProperty({ description: 'Current Position Quantity' })
   currentBalance: number;
 
   @ApiProperty({ description: 'Average Purchase Price' })
@@ -23,7 +23,7 @@ export class PlatformAssetResponseDto {
   })
   priceChangePercentage: number;
 
-  @ApiProperty({ description: 'Total Market Value' })
+  @ApiProperty({ description: 'Total Market Value of Position' })
   totalMarketValue: number;
 
   constructor(partial: {
