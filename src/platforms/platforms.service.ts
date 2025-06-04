@@ -190,11 +190,10 @@ export class PlatformsService {
       return new PlatformDashboardResponseDto(platform, 0, 0, 0, 0);
     }
 
-    // ✅ USAR DIRETAMENTE o PortfolioCalculationsService sem wrapper desnecessário
+    // ✅ USAR método auxiliar otimizado que calcula apenas o que é necessário
     const assetMetrics =
       await this.extractAssetMetricsFromTransactions(transactions);
-    const platformSummary =
-      this.portfolioCalculationsService.calculatePlatformSummary(assetMetrics);
+    const platformSummary = this.calculateBasicPlatformSummary(assetMetrics);
 
     return new PlatformDashboardResponseDto(
       platform,
@@ -401,5 +400,35 @@ export class PlatformsService {
     assetResponses.sort((a, b) => b.totalMarketValue - a.totalMarketValue);
 
     return assetResponses;
+  }
+
+  /**
+   * ✅ MÉTODO AUXILIAR OTIMIZADO: Calcula apenas as métricas básicas necessárias para o dashboard
+   * Evita calcular propriedades não utilizadas (totalUnrealizedGainLoss, totalUnrealizedPercentage, assetsMetrics)
+   *
+   * @param assetMetrics Array de métricas individuais de ativos
+   * @returns Resumo básico da plataforma (apenas propriedades usadas)
+   */
+  private calculateBasicPlatformSummary(assetMetrics: AssetMetrics[]): {
+    totalAssets: number;
+    totalInvested: number;
+    totalCurrentValue: number;
+    totalRealizedGainLoss: number;
+  } {
+    return assetMetrics.reduce(
+      (acc, asset) => ({
+        totalAssets: acc.totalAssets + 1,
+        totalInvested: acc.totalInvested + asset.totalInvested,
+        totalCurrentValue: acc.totalCurrentValue + asset.currentValue,
+        totalRealizedGainLoss:
+          acc.totalRealizedGainLoss + asset.realizedGainLoss,
+      }),
+      {
+        totalAssets: 0,
+        totalInvested: 0,
+        totalCurrentValue: 0,
+        totalRealizedGainLoss: 0,
+      },
+    );
   }
 }

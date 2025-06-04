@@ -24,19 +24,6 @@ export interface AssetMetrics {
 }
 
 /**
- * Interface para resumo de uma plataforma
- */
-export interface PlatformSummary {
-  totalAssets: number;
-  totalInvested: number;
-  totalCurrentValue: number;
-  totalUnrealizedGainLoss: number;
-  totalUnrealizedPercentage: number;
-  totalRealizedGainLoss: number;
-  assetsMetrics: AssetMetrics[];
-}
-
-/**
  * Interface para resultado de validação
  */
 export interface ValidationResult {
@@ -51,7 +38,6 @@ export interface ValidationResult {
  * RESPONSABILIDADES:
  * - Centralizar algoritmo de preço médio ponderado
  * - Calcular métricas de ativos individuais
- * - Agregar métricas de múltiplos ativos
  * - Validações financeiras específicas
  *
  * ELIMINA DUPLICAÇÃO DE:
@@ -171,45 +157,6 @@ export class PortfolioCalculationsService {
       unrealizedPercentage,
       realizedGainLoss,
       totalSoldValue,
-    };
-  }
-
-  /**
-   * Calcula métricas agregadas de múltiplos ativos (resumo de plataforma)
-   *
-   * @param assetMetrics Array de métricas individuais de ativos
-   * @returns Resumo consolidado da plataforma
-   */
-  calculatePlatformSummary(assetMetrics: AssetMetrics[]): PlatformSummary {
-    const summary = assetMetrics.reduce(
-      (acc, asset) => ({
-        totalAssets: acc.totalAssets + 1,
-        totalInvested: acc.totalInvested + asset.totalInvested,
-        totalCurrentValue: acc.totalCurrentValue + asset.currentValue,
-        totalUnrealizedGainLoss:
-          acc.totalUnrealizedGainLoss + asset.unrealizedGainLoss,
-        totalRealizedGainLoss:
-          acc.totalRealizedGainLoss + asset.realizedGainLoss,
-      }),
-      {
-        totalAssets: 0,
-        totalInvested: 0,
-        totalCurrentValue: 0,
-        totalUnrealizedGainLoss: 0,
-        totalRealizedGainLoss: 0,
-      },
-    );
-
-    // Calcula percentual não realizado total
-    const totalUnrealizedPercentage =
-      summary.totalInvested > 0
-        ? (summary.totalUnrealizedGainLoss / summary.totalInvested) * 100
-        : 0;
-
-    return {
-      ...summary,
-      totalUnrealizedPercentage,
-      assetsMetrics: assetMetrics,
     };
   }
 
