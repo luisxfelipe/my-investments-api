@@ -25,7 +25,7 @@ import { Transaction } from 'src/transactions/entities/transaction.entity';
 import { PortfoliosService } from 'src/portfolios/portfolios.service';
 import {
   PortfolioCalculationsService,
-  AssetMetrics,
+  PositionMetrics,
 } from 'src/portfolios/portfolio-calculations.service';
 
 @Injectable()
@@ -287,7 +287,7 @@ export class PlatformsService {
    */
   private async extractAssetMetricsFromTransactions(
     transactions: Transaction[],
-  ): Promise<AssetMetrics[]> {
+  ): Promise<PositionMetrics[]> {
     // Agrupar transações por ativo
     const assetTransactions = new Map<number, Transaction[]>();
     for (const transaction of transactions) {
@@ -304,7 +304,7 @@ export class PlatformsService {
       await this.assetQuotesService.findLatestForAssetIds(assetIds);
     const quotesMap = new Map(quotes.map((quote) => [quote.assetId, quote]));
 
-    const assetMetrics: AssetMetrics[] = [];
+    const assetMetrics: PositionMetrics[] = [];
 
     // Calcular métricas para cada ativo usando PortfolioCalculationsService
     for (const [assetId, assetTransactionsList] of assetTransactions) {
@@ -323,10 +323,11 @@ export class PlatformsService {
         : undefined;
 
       // ✅ USAR PortfolioCalculationsService para calcular métricas
-      const metrics = this.portfolioCalculationsService.calculateAssetMetrics(
-        sortedTransactions,
-        currentPrice,
-      );
+      const metrics =
+        this.portfolioCalculationsService.calculatePositionMetrics(
+          sortedTransactions,
+          currentPrice,
+        );
 
       // Apenas incluir ativos com saldo positivo
       if (metrics.quantity > 0) {
@@ -410,7 +411,7 @@ export class PlatformsService {
    * @param assetMetrics Array de métricas individuais de ativos
    * @returns Resumo básico da plataforma (apenas propriedades usadas)
    */
-  private calculateBasicPlatformSummary(assetMetrics: AssetMetrics[]): {
+  private calculateBasicPlatformSummary(assetMetrics: PositionMetrics[]): {
     totalAssets: number;
     totalInvested: number;
     totalCurrentValue: number;

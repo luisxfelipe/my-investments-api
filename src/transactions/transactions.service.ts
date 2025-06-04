@@ -479,7 +479,7 @@ export class TransactionsService {
     if (transactionType === 'SELL' || transactionType === 'TRANSFER') {
       // Para vendas/transferências, verificar saldo disponível
       const assetMetrics =
-        this.portfolioCalculationsService.calculateAssetMetrics(
+        this.portfolioCalculationsService.calculatePositionMetrics(
           portfolioTransactions,
         );
       const availableBalance = assetMetrics.quantity;
@@ -497,7 +497,7 @@ export class TransactionsService {
       isValid: true,
       availableBalance:
         portfolioTransactions.length > 0
-          ? this.portfolioCalculationsService.calculateAssetMetrics(
+          ? this.portfolioCalculationsService.calculatePositionMetrics(
               portfolioTransactions,
             ).quantity
           : 0,
@@ -1064,7 +1064,7 @@ export class TransactionsService {
     });
 
     // Usar o service de cálculos centralizado
-    return this.portfolioCalculationsService.calculateCurrentBalance(
+    return this.portfolioCalculationsService.calculatePositionQuantity(
       transactions,
     );
   }
@@ -1090,7 +1090,7 @@ export class TransactionsService {
     });
 
     // Usar o service de cálculos centralizado
-    return this.portfolioCalculationsService.calculateCurrentAveragePrice(
+    return this.portfolioCalculationsService.calculateWeightedAveragePrice(
       transactions,
     );
   }

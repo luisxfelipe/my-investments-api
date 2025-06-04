@@ -6,9 +6,10 @@ import {
 } from '../constants/transaction-types.constants';
 
 /**
- * Interface para métricas de um ativo específico
+ * Interface para métricas de uma posição em portfolio
+ * Representa a situação financeira de um ativo específico em um portfolio
  */
-export interface AssetMetrics {
+export interface PositionMetrics {
   assetId: number;
   assetName: string;
   assetSymbol: string;
@@ -39,17 +40,17 @@ export interface AssetMetrics {
 @Injectable()
 export class PortfolioCalculationsService {
   /**
-   * MÉTODO PRINCIPAL - Substitui toda a lógica duplicada
-   * Calcula métricas completas de um ativo baseado em suas transações
+   * MÉTODO PRINCIPAL - Calcula métricas completas de uma posição em portfolio
+   * Centraliza o algoritmo de preço médio ponderado e cálculos financeiros
    *
-   * @param transactions Lista de transações do ativo (ordenadas por data)
+   * @param transactions Lista de transações da posição (ordenadas por data)
    * @param currentPrice Preço atual do ativo (opcional)
-   * @returns Métricas completas do ativo
+   * @returns Métricas completas da posição
    */
-  calculateAssetMetrics(
+  calculatePositionMetrics(
     transactions: Transaction[],
     currentPrice?: number,
-  ): AssetMetrics {
+  ): PositionMetrics {
     if (!transactions.length) {
       throw new Error('Lista de transações não pode estar vazia');
     }
@@ -152,28 +153,28 @@ export class PortfolioCalculationsService {
   }
 
   /**
-   * Calcula o saldo atual de um portfolio baseado em suas transações
+   * Calcula a quantidade total de ativos em uma posição
    * Método otimizado que não precisa buscar a última transação
    *
-   * @param transactions Transações do portfolio
-   * @returns Saldo atual
+   * @param transactions Transações da posição
+   * @returns Quantidade total de ativos
    */
-  calculateCurrentBalance(transactions: Transaction[]): number {
+  calculatePositionQuantity(transactions: Transaction[]): number {
     if (!transactions.length) return 0;
 
-    return this.calculateAssetMetrics(transactions).quantity;
+    return this.calculatePositionMetrics(transactions).quantity;
   }
 
   /**
-   * Calcula o preço médio atual de um portfolio baseado em suas transações
+   * Calcula o preço médio ponderado de uma posição
    * Método otimizado que não precisa buscar a última transação
    *
-   * @param transactions Transações do portfolio
-   * @returns Preço médio atual
+   * @param transactions Transações da posição
+   * @returns Preço médio ponderado
    */
-  calculateCurrentAveragePrice(transactions: Transaction[]): number {
+  calculateWeightedAveragePrice(transactions: Transaction[]): number {
     if (!transactions.length) return 0;
 
-    return this.calculateAssetMetrics(transactions).averagePrice;
+    return this.calculatePositionMetrics(transactions).averagePrice;
   }
 }
