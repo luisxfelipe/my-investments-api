@@ -24,15 +24,6 @@ export interface AssetMetrics {
 }
 
 /**
- * Interface para resultado de validação
- */
-export interface ValidationResult {
-  isValid: boolean;
-  message?: string;
-  availableBalance?: number;
-}
-
-/**
  * Service centralizado para TODOS os cálculos financeiros de portfolio/ativo
  *
  * RESPONSABILIDADES:
@@ -157,43 +148,6 @@ export class PortfolioCalculationsService {
       unrealizedPercentage,
       realizedGainLoss,
       totalSoldValue,
-    };
-  }
-
-  /**
-   * Validação financeira específica para transações
-   * Centraliza validações de saldo, limites, etc.
-   *
-   * @param portfolioTransactions Transações do portfolio
-   * @param transactionType Tipo da transação ('BUY', 'SELL', etc.)
-   * @param amount Quantidade da transação
-   * @returns Resultado da validação
-   */
-  validateTransaction(
-    portfolioTransactions: Transaction[],
-    transactionType: 'BUY' | 'SELL' | 'TRANSFER',
-    amount: number,
-  ): ValidationResult {
-    if (transactionType === 'SELL' || transactionType === 'TRANSFER') {
-      // Para vendas/transferências, verificar saldo disponível
-      const assetMetrics = this.calculateAssetMetrics(portfolioTransactions);
-      const availableBalance = assetMetrics.quantity;
-
-      if (availableBalance < amount) {
-        return {
-          isValid: false,
-          message: `Saldo insuficiente. Disponível: ${availableBalance}, Necessário: ${amount}`,
-          availableBalance,
-        };
-      }
-    }
-
-    return {
-      isValid: true,
-      availableBalance:
-        portfolioTransactions.length > 0
-          ? this.calculateAssetMetrics(portfolioTransactions).quantity
-          : 0,
     };
   }
 

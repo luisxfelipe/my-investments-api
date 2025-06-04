@@ -24,6 +24,15 @@ import {
 } from 'src/constants/transaction-types.constants';
 import { CurrencyHelper } from 'src/constants/currency.helper';
 
+/**
+ * Interface para resultado de validação
+ */
+export interface ValidationResult {
+  isValid: boolean;
+  message?: string;
+  availableBalance?: number;
+}
+
 @Injectable()
 export class TransactionsService {
   constructor(
@@ -70,12 +79,11 @@ export class TransactionsService {
       const transactions = await this.findAllByPortfolioId(
         createTransactionDto.portfolioId,
       );
-      const validationResult =
-        this.portfolioCalculationsService.validateTransaction(
-          transactions,
-          'SELL',
-          createTransactionDto.quantity,
-        );
+      const validationResult = this.validateTransaction(
+        transactions,
+        'SELL',
+        createTransactionDto.quantity,
+      );
 
       if (!validationResult.isValid) {
         throw new BadRequestException(validationResult.message);
@@ -306,12 +314,11 @@ export class TransactionsService {
 
         // Buscar transações e validar saldo disponível
         const transactions = await this.findAllByPortfolioId(portfolioId);
-        const validationResult =
-          this.portfolioCalculationsService.validateTransaction(
-            transactions,
-            'SELL',
-            newTransactionQuantity,
-          );
+        const validationResult = this.validateTransaction(
+          transactions,
+          'SELL',
+          newTransactionQuantity,
+        );
 
         if (!validationResult.isValid) {
           throw new BadRequestException(validationResult.message);
@@ -455,6 +462,46 @@ export class TransactionsService {
         `Transaction date (${newDateFormatted}) cannot be earlier than the last transaction date (${lastDateFormatted})`,
       );
     }
+  }
+
+  /**
+   * Valida se uma transação pode ser executada baseada no saldo disponível
+   * @param portfolioTransactions Lista de transações do portfolio
+   * @param transactionType Tipo de transação (BUY, SELL, TRANSFER)
+   * @param amount Quantidade a ser transacionada
+   * @returns Resultado da validação
+   */
+  validateTransaction(
+    portfolioTransactions: Transaction[],
+    transactionType: 'BUY' | 'SELL' | 'TRANSFER',
+    amount: number,
+  ): ValidationResult {
+    if (transactionType === 'SELL' || transactionType === 'TRANSFER') {
+      // Para vendas/transferências, verificar saldo disponível
+      const assetMetrics =
+        this.portfolioCalculationsService.calculateAssetMetrics(
+          portfolioTransactions,
+        );
+      const availableBalance = assetMetrics.quantity;
+
+      if (availableBalance < amount) {
+        return {
+          isValid: false,
+          message: `Saldo insuficiente. Disponível: ${availableBalance}, Necessário: ${amount}`,
+          availableBalance,
+        };
+      }
+    }
+
+    return {
+      isValid: true,
+      availableBalance:
+        portfolioTransactions.length > 0
+          ? this.portfolioCalculationsService.calculateAssetMetrics(
+              portfolioTransactions,
+            ).quantity
+          : 0,
+    };
   }
 
   /**
