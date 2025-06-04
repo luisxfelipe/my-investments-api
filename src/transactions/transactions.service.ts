@@ -12,7 +12,7 @@ import { Repository } from 'typeorm';
 import { TransactionReasonsService } from 'src/transaction-reasons/transaction-reasons.service';
 import { TransactionTypesService } from 'src/transaction-types/transaction-types.service';
 import { PortfoliosService } from 'src/portfolios/portfolios.service';
-import { PortfolioCalculationsService } from 'src/portfolios/portfolio-calculations.service';
+import { FinancialCalculationsService } from '../shared/services/financial-calculations.service';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Transaction } from './entities/transaction.entity';
 import { PaginatedResponseDto } from 'src/dtos/paginated-response.dto';
@@ -43,7 +43,7 @@ export class TransactionsService {
     private readonly transactionReasonsService: TransactionReasonsService,
     @Inject(forwardRef(() => TransactionTypesService))
     private readonly transactionTypesService: TransactionTypesService,
-    private readonly portfolioCalculationsService: PortfolioCalculationsService, // Injetar o serviço de cálculos de portfólio
+    private readonly financialCalculationsService: FinancialCalculationsService, // Injetar o serviço de cálculos financeiros
   ) {}
 
   async create(
@@ -479,7 +479,7 @@ export class TransactionsService {
     if (transactionType === 'SELL' || transactionType === 'TRANSFER') {
       // Para vendas/transferências, verificar saldo disponível
       const assetMetrics =
-        this.portfolioCalculationsService.calculatePositionMetrics(
+        this.financialCalculationsService.calculatePositionMetrics(
           portfolioTransactions,
         );
       const availableBalance = assetMetrics.quantity;
@@ -497,7 +497,7 @@ export class TransactionsService {
       isValid: true,
       availableBalance:
         portfolioTransactions.length > 0
-          ? this.portfolioCalculationsService.calculatePositionMetrics(
+          ? this.financialCalculationsService.calculatePositionMetrics(
               portfolioTransactions,
             ).quantity
           : 0,
@@ -1064,14 +1064,14 @@ export class TransactionsService {
     });
 
     // Usar o service de cálculos centralizado
-    return this.portfolioCalculationsService.calculatePositionQuantity(
+    return this.financialCalculationsService.calculatePositionQuantity(
       transactions,
     );
   }
 
   /**
    * Obtém o preço médio atual de um portfolio de forma otimizada
-   * Usa PortfolioCalculationsService para evitar duplicação de lógica
+   * Usa FinancialCalculationsService para evitar duplicação de lógica
    *
    * @param portfolioId ID do portfolio
    * @returns Preço médio atual do portfolio
@@ -1090,7 +1090,7 @@ export class TransactionsService {
     });
 
     // Usar o service de cálculos centralizado
-    return this.portfolioCalculationsService.calculateWeightedAveragePrice(
+    return this.financialCalculationsService.calculateWeightedAveragePrice(
       transactions,
     );
   }

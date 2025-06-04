@@ -15,7 +15,7 @@ import { UsersService } from 'src/users/users.service';
 import { Repository, IsNull } from 'typeorm';
 import { InjectRepository } from '@nestjs/typeorm';
 import { TransactionsService } from 'src/transactions/transactions.service';
-import { PortfolioCalculationsService } from './portfolio-calculations.service';
+import { FinancialCalculationsService } from '../shared/services/financial-calculations.service';
 import { PaginatedResponseDto } from '../dtos/paginated-response.dto';
 
 @Injectable()
@@ -32,7 +32,7 @@ export class PortfoliosService {
     private readonly savingsGoalsService: SavingsGoalsService,
     @Inject(forwardRef(() => TransactionsService))
     private readonly transactionsService: TransactionsService,
-    private readonly portfolioCalculationsService: PortfolioCalculationsService,
+    private readonly financialCalculationsService: FinancialCalculationsService,
   ) {}
 
   async create(

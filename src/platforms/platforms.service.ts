@@ -24,9 +24,9 @@ import { AssetQuotesService } from 'src/asset-quotes/asset-quotes.service';
 import { Transaction } from 'src/transactions/entities/transaction.entity';
 import { PortfoliosService } from 'src/portfolios/portfolios.service';
 import {
-  PortfolioCalculationsService,
+  FinancialCalculationsService,
   PositionMetrics,
-} from 'src/portfolios/portfolio-calculations.service';
+} from '../shared/services/financial-calculations.service';
 
 @Injectable()
 export class PlatformsService {
@@ -41,8 +41,8 @@ export class PlatformsService {
     private readonly assetQuotesService: AssetQuotesService,
     @Inject(forwardRef(() => PortfoliosService))
     private readonly portfoliosService: PortfoliosService,
-    @Inject(forwardRef(() => PortfolioCalculationsService))
-    private readonly portfolioCalculationsService: PortfolioCalculationsService,
+    @Inject(forwardRef(() => FinancialCalculationsService))
+    private readonly financialCalculationsService: FinancialCalculationsService,
   ) {}
 
   async create(
@@ -324,7 +324,7 @@ export class PlatformsService {
 
       // ✅ USAR PortfolioCalculationsService para calcular métricas
       const metrics =
-        this.portfolioCalculationsService.calculatePositionMetrics(
+        this.financialCalculationsService.calculatePositionMetrics(
           sortedTransactions,
           currentPrice,
         );

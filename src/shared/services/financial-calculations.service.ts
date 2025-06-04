@@ -1,9 +1,9 @@
 import { Injectable } from '@nestjs/common';
-import { Transaction } from '../transactions/entities/transaction.entity';
+import { Transaction } from '../../transactions/entities/transaction.entity';
 import {
   TransactionTypeHelper,
   TransactionReasonHelper,
-} from '../constants/transaction-types.constants';
+} from '../../constants/transaction-types.constants';
 
 /**
  * Interface para métricas de uma posição em portfolio
@@ -38,7 +38,7 @@ export interface PositionMetrics {
  * - PortfoliosService (validações financeiras)
  */
 @Injectable()
-export class PortfolioCalculationsService {
+export class FinancialCalculationsService {
   /**
    * MÉTODO PRINCIPAL - Calcula métricas completas de uma posição em portfolio
    * Centraliza o algoritmo de preço médio ponderado e cálculos financeiros
