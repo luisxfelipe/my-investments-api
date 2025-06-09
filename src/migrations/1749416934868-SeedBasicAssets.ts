@@ -1,9 +1,10 @@
 import { MigrationInterface, QueryRunner } from 'typeorm';
 
-export class SeedBasicAssets1748909412570 implements MigrationInterface {
+export class SeedBasicAssets1749416934868 implements MigrationInterface {
   public async up(queryRunner: QueryRunner): Promise<void> {
-    // Inserir ativos básicos de moeda (BRL e USD)
-    // Primeiro busca o ID do tipo "Moeda Fiduciária"
+    // INSERIR ATIVOS BÁSICOS DE MOEDA (BRL e USD)
+
+    // Buscar ID do tipo "Moeda Fiduciária"
     const assetTypeResult = (await queryRunner.query(`
       SELECT id FROM asset_type WHERE name = 'Moeda Fiduciária'
     `)) as Array<{ id: number }>;
@@ -24,14 +25,18 @@ export class SeedBasicAssets1748909412570 implements MigrationInterface {
           ('Real Brasileiro', 'BRL', ${currencyTypeId}, ${categoryId}, 1),
           ('Dólar Americano', 'USD', ${currencyTypeId}, ${categoryId}, 1)
         `);
+
+        console.log('✅ Ativos básicos (BRL, USD) inseridos');
       }
     }
   }
 
   public async down(queryRunner: QueryRunner): Promise<void> {
-    // Remover os ativos básicos inseridos
+    // REMOVER ATIVOS BÁSICOS
     await queryRunner.query(`
       DELETE FROM asset WHERE code IN ('BRL', 'USD')
     `);
+
+    console.log('🔄 Ativos básicos removidos');
   }
 }

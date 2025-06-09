@@ -1,8 +1,8 @@
 import { MigrationInterface, QueryRunner } from 'typeorm';
 
-export class SeedTransactionReasons1748909107540 implements MigrationInterface {
+export class SeedTransactionReasons1749416822339 implements MigrationInterface {
   public async up(queryRunner: QueryRunner): Promise<void> {
-    // Inserir razões de transação RECOMENDADAS para funcionalidade completa
+    // INSERIR RAZÕES DE TRANSAÇÃO RECOMENDADAS
     await queryRunner.query(`
       INSERT INTO transaction_reason (reason, transaction_type_id) VALUES
       ('Compra', 1),
@@ -13,10 +13,12 @@ export class SeedTransactionReasons1748909107540 implements MigrationInterface {
       ('Saque', 2),
       ('Dividendo', 1)
     `);
+
+    console.log('✅ Razões de transação recomendadas inseridas');
   }
 
   public async down(queryRunner: QueryRunner): Promise<void> {
-    // Remover as razões de transação inseridas
+    // REMOVER RAZÕES DE TRANSAÇÃO
     await queryRunner.query(`
       DELETE FROM transaction_reason WHERE reason IN (
         'Compra',
@@ -28,5 +30,7 @@ export class SeedTransactionReasons1748909107540 implements MigrationInterface {
         'Dividendo'
       )
     `);
+
+    console.log('🔄 Razões de transação removidas');
   }
 }

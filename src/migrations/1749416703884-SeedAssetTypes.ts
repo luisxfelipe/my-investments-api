@@ -1,8 +1,8 @@
 import { MigrationInterface, QueryRunner } from 'typeorm';
 
-export class SeedAssetTypes1748907964894 implements MigrationInterface {
+export class SeedAssetTypes1749416703884 implements MigrationInterface {
   public async up(queryRunner: QueryRunner): Promise<void> {
-    // Inserir tipos de ativos padrão
+    // INSERIR TIPOS DE ATIVOS PADRÃO
     await queryRunner.query(`
       INSERT INTO asset_type (name) VALUES
       ('Moeda Fiduciária'),
@@ -14,10 +14,12 @@ export class SeedAssetTypes1748907964894 implements MigrationInterface {
       ('ETF'),
       ('CDB')
     `);
+
+    console.log('✅ Tipos de ativos padrão inseridos');
   }
 
   public async down(queryRunner: QueryRunner): Promise<void> {
-    // Remover os tipos de ativos inseridos
+    // REMOVER TIPOS DE ATIVOS PADRÃO
     await queryRunner.query(`
       DELETE FROM asset_type WHERE name IN (
         'Moeda Fiduciária',
@@ -30,5 +32,7 @@ export class SeedAssetTypes1748907964894 implements MigrationInterface {
         'CDB'
       )
     `);
+
+    console.log('🔄 Tipos de ativos padrão removidos');
   }
 }

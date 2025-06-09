@@ -1,19 +1,23 @@
 import { MigrationInterface, QueryRunner } from 'typeorm';
 
-export class SeedTransactionTypes1748909096808 implements MigrationInterface {
+export class SeedTransactionTypes1749416773985 implements MigrationInterface {
   public async up(queryRunner: QueryRunner): Promise<void> {
-    // Inserir tipos de transação OBRIGATÓRIOS para funcionamento do sistema
+    // INSERIR TIPOS DE TRANSAÇÃO OBRIGATÓRIOS
     await queryRunner.query(`
       INSERT INTO transaction_type (id, type) VALUES
       (1, 'Entrada'),
       (2, 'Saída')
     `);
+
+    console.log('✅ Tipos de transação obrigatórios inseridos');
   }
 
   public async down(queryRunner: QueryRunner): Promise<void> {
-    // Remover os tipos de transação inseridos
+    // REMOVER TIPOS DE TRANSAÇÃO
     await queryRunner.query(`
       DELETE FROM transaction_type WHERE id IN (1, 2)
     `);
+
+    console.log('🔄 Tipos de transação removidos');
   }
 }
