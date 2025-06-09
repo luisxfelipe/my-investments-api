@@ -29,7 +29,10 @@ import { TransactionReasonsModule } from './transaction-reasons/transaction-reas
         username: configService.get<string>('DB_USER'),
         password: configService.get<string>('DB_PASSWORD'),
         database: configService.get<string>('DB_DATABASE'),
-        timezone: 'Z',
+        timezone: 'Z', // Define o timezone como UTC para o TypeORM
+        extra: {
+          timezone: 'Z', // Define o timezone como UTC para o mysql2
+        },
         entities: configService.get('DB_ENTITIES')
           ? [__dirname + configService.get('DB_ENTITIES')]
           : [__dirname + process.env.DB_ENTITIES],
