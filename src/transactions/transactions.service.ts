@@ -220,6 +220,27 @@ export class TransactionsService {
     // Verifica se a transação existe e pertence ao usuário
     const transaction = await this.findOne(id, userId);
 
+    // 🔒 PROTEÇÃO: Bloquear alterações em transferências (exceto notes)
+    if (
+      TransactionReasonHelper.isAnyTransfer(transaction.transactionReasonId)
+    ) {
+      // Permitir apenas alteração de observações
+      const allowedFields = ['notes'];
+      const providedFields = Object.keys(updateTransactionDto);
+      const blockedFields = providedFields.filter(
+        (field) => !allowedFields.includes(field),
+      );
+
+      if (blockedFields.length > 0) {
+        throw new BadRequestException(
+          `Transações de transferência não podem ser alteradas. ` +
+            `Apenas observações (notes) podem ser editadas. ` +
+            `Campos bloqueados: ${blockedFields.join(', ')}. ` +
+            `Para corrigir, exclua e crie uma nova transferência.`,
+        );
+      }
+    }
+
     // ✅ VALIDAÇÃO DE ORDEM CRONOLÓGICA: Verificar se é a última transação do portfólio
     await this.validateIsLastTransaction(id, transaction.portfolioId);
 
