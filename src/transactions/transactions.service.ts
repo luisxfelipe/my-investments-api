@@ -345,6 +345,19 @@ export class TransactionsService {
     const transaction = await this.findOne(id, userId);
     const portfolioId = transaction.portfolioId;
 
+    // ❌ BLOQUEAR EXCLUSÃO DE TRANSFERÊNCIAS VIA DELETE NORMAL
+    const isTransfer = TransactionReasonHelper.isAnyTransfer(
+      transaction.transactionReasonId,
+    );
+
+    if (isTransfer) {
+      throw new BadRequestException(
+        `Cannot delete transfer transactions individually. ` +
+          `Transfer transactions must be deleted as a complete unit to maintain data integrity. ` +
+          `Use DELETE /transactions/transfer/${id} to remove the complete transfer safely.`,
+      );
+    }
+
     // ✅ VALIDAÇÃO DE ORDEM CRONOLÓGICA: Verificar se é a última transação do portfólio
     await this.validateIsLastTransaction(id, transaction.portfolioId);
 
@@ -353,6 +366,108 @@ export class TransactionsService {
 
     // Recalcular saldo e preço médio de todas as transações após a exclusão
     await this.recalculateTransactionBalances(portfolioId);
+  }
+
+  /**
+   * Remove transferência completa (ambas as transações vinculadas)
+   * Usa transação de banco de dados para garantir atomicidade
+   * @param transferId ID de qualquer uma das transações da transferência
+   * @param userId ID do usuário
+   */
+  async removeTransfer(transferId: number, userId: number): Promise<void> {
+    return await this.repository.manager.transaction(async (manager) => {
+      // 🔍 BUSCAR A TRANSAÇÃO PRINCIPAL
+      const transaction = await manager
+        .createQueryBuilder(Transaction, 'transaction')
+        .leftJoinAndSelect('transaction.portfolio', 'portfolio')
+        .leftJoinAndSelect('portfolio.asset', 'asset')
+        .where('transaction.id = :transferId', { transferId })
+        .andWhere('portfolio.userId = :userId', { userId })
+        .andWhere('transaction.deletedAt IS NULL')
+        .getOne();
+
+      if (!transaction) {
+        throw new NotFoundException(
+          `Transfer with ID ${transferId} not found or you don't have access to it`,
+        );
+      }
+
+      // ✅ VERIFICAR SE É TRANSFERÊNCIA
+      const isTransfer = TransactionReasonHelper.isAnyTransfer(
+        transaction.transactionReasonId,
+      );
+
+      if (!isTransfer) {
+        throw new BadRequestException(
+          `Transaction ${transferId} is not a transfer. ` +
+            `Use DELETE /transactions/${transferId} for regular transactions.`,
+        );
+      }
+
+      // ✅ VERIFICAR SE TEM TRANSAÇÃO VINCULADA
+      if (!transaction.linkedTransactionId) {
+        throw new BadRequestException(
+          `Transfer transaction ${transferId} has no linked transaction. ` +
+            `This indicates a data integrity issue.`,
+        );
+      }
+
+      // 🔍 BUSCAR A TRANSAÇÃO VINCULADA
+      const linkedTransaction = await manager
+        .createQueryBuilder(Transaction, 'transaction')
+        .leftJoinAndSelect('transaction.portfolio', 'portfolio')
+        .leftJoinAndSelect('portfolio.asset', 'asset')
+        .where('transaction.id = :linkedId', {
+          linkedId: transaction.linkedTransactionId,
+        })
+        .andWhere('portfolio.userId = :userId', { userId })
+        .andWhere('transaction.deletedAt IS NULL')
+        .getOne();
+
+      if (!linkedTransaction) {
+        throw new NotFoundException(
+          `Linked transaction ${transaction.linkedTransactionId} not found. ` +
+            `This indicates a data integrity issue.`,
+        );
+      }
+
+      // ✅ VALIDAÇÃO ADICIONAL: Verificar se são a última transação de cada portfolio
+      await this.validateIsLastTransaction(
+        transaction.id,
+        transaction.portfolioId,
+      );
+      await this.validateIsLastTransaction(
+        linkedTransaction.id,
+        linkedTransaction.portfolioId,
+      );
+
+      // 🗑️ SOFT DELETE DE AMBAS AS TRANSAÇÕES EM TRANSAÇÃO ATÔMICA
+      const now = new Date();
+
+      await manager.update(Transaction, transaction.id, {
+        deletedAt: now,
+      });
+
+      await manager.update(Transaction, linkedTransaction.id, {
+        deletedAt: now,
+      });
+
+      // 📝 LOG PARA AUDITORIA
+      console.log(
+        `🗑️ Complete transfer removed: ` +
+          `Source transaction ${transaction.id} (${transaction.quantity} ${transaction.portfolio.asset?.code || 'units'}) ` +
+          `and target transaction ${linkedTransaction.id} ` +
+          `by user ${userId}`,
+      );
+
+      // ♻️ RECALCULAR SALDOS DOS PORTFOLIOS AFETADOS
+      await this.recalculateTransactionBalances(transaction.portfolioId);
+      if (transaction.portfolioId !== linkedTransaction.portfolioId) {
+        await this.recalculateTransactionBalances(
+          linkedTransaction.portfolioId,
+        );
+      }
+    });
   }
 
   /**

@@ -37,13 +37,13 @@ export class TransactionsController {
     summary: 'Create a new transaction',
     description: `
       Creates a new transaction (buy, sell, deposit, withdrawal, etc.).
-      
+
       **Important:** Transfers cannot be created using this endpoint.
       Use POST /transactions/transfer for automatic linked transfers between portfolios.
-      
+
       **Supported transaction types:**
       - Buy operations
-      - Sell operations  
+      - Sell operations
       - Deposits
       - Withdrawals
       - Other non-transfer transactions
@@ -178,11 +178,33 @@ export class TransactionsController {
 
   @Delete(':id')
   @HttpCode(HttpStatus.NO_CONTENT)
-  @ApiOperation({ summary: 'Remove a transaction by id (soft delete)' })
+  @ApiOperation({
+    summary: 'Remove a transaction by id (soft delete)',
+    description: `
+      Removes a single transaction by ID.
+
+      **Important Restrictions:**
+      - Transfer transactions cannot be deleted individually
+      - Only the most recent transaction in each portfolio can be deleted
+      - Maintains chronological order integrity
+
+      **For Transfer Transactions:**
+      Use DELETE /transactions/transfer/:id to safely remove complete transfers.
+
+      **Safety Features:**
+      - Automatic portfolio balance recalculation
+      - Chronological order validation
+    `,
+  })
   @ApiParam({ name: 'id', description: 'Transaction id' })
   @ApiResponse({
     status: 204,
     description: 'Transaction has been marked as successfully removed',
+  })
+  @ApiResponse({
+    status: 400,
+    description:
+      'Transfer transaction (use DELETE /transactions/transfer/:id) or chronological order violation',
   })
   @ApiResponse({ status: 404, description: 'Transaction not found' })
   async remove(
@@ -322,16 +344,16 @@ export class TransactionsController {
     summary: 'Transfer assets between portfolios',
     description: `
       Transfers assets between two portfolios of the same asset type.
-      
+
       **Automatic Pricing:**
       - For currencies (USD, BRL, EUR): unitPrice = 1 (automatic)
       - For other assets (BTC, ETH, AAPL): unitPrice = current average price (automatic)
-      
+
       **Requirements:**
       - Both portfolios must contain the same asset
       - Source portfolio must have sufficient balance
       - User must own both portfolios
-      
+
       **Note:** Unit price is calculated automatically based on asset type and current portfolio state.
     `,
   })
@@ -361,5 +383,53 @@ export class TransactionsController {
       sourceTransaction: new TransactionResponseDto(result.sourceTransaction),
       targetTransaction: new TransactionResponseDto(result.targetTransaction),
     };
+  }
+
+  @Delete('transfer/:id')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiOperation({
+    summary: 'Remove a complete transfer by transaction id (safe deletion)',
+    description: `
+      Safely removes a complete transfer by deleting both linked transactions atomically.
+
+      **How it works:**
+      - Accepts the ID of any transaction that is part of a transfer pair
+      - Automatically finds and deletes both the source and target transactions
+      - Uses database transaction to ensure atomically deletion
+      - Recalculates portfolio balances after deletion
+
+      **Safety features:**
+      - Only allows deletion of the most recent transaction in each portfolio
+      - Maintains chronological order integrity
+      - Automatically handles portfolio balance recalculation
+
+      **Note:** This is the only safe way to delete transfer transactions.
+      Individual transaction deletion via DELETE /transactions/:id is blocked for transfers.
+    `,
+  })
+  @ApiParam({
+    name: 'id',
+    description:
+      'ID of any transaction from the transfer pair (source or target)',
+  })
+  @ApiResponse({
+    status: 204,
+    description:
+      'Transfer has been completely removed (both transactions deleted)',
+  })
+  @ApiResponse({
+    status: 400,
+    description:
+      'Transaction is not a transfer or chronological order would be violated',
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'Transaction not found or does not belong to user',
+  })
+  async removeTransfer(
+    @Param('id') id: string,
+    @UserDecorator() userId: number,
+  ): Promise<void> {
+    await this.transactionsService.removeTransfer(+id, userId);
   }
 }
