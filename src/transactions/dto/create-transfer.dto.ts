@@ -43,20 +43,6 @@ export class CreateTransferDto {
   quantity: number;
 
   @ApiProperty({
-    description:
-      'Unit price (required for non-currency assets, optional for currencies)',
-    example: 50.25,
-    required: false,
-  })
-  @IsOptional()
-  @IsNumber({}, { message: 'Unit price must be a number' })
-  @Min(0, { message: 'Unit price must be zero or positive' })
-  @DecimalPrecision(8, {
-    message: 'Unit price cannot have more than 8 decimal places',
-  })
-  unitPrice?: number;
-
-  @ApiProperty({
     description: 'Transfer date',
     example: '2022-01-01T00:00:00.000Z',
   })

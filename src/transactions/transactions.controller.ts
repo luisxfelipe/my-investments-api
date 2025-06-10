@@ -323,14 +323,16 @@ export class TransactionsController {
     description: `
       Transfers assets between two portfolios of the same asset type.
       
-      **Automatic Detection:**
-      - For currencies (USD, BRL, EUR): unitPrice is optional (defaults to 1)
-      - For other assets (BTC, ETH, AAPL): unitPrice is required
+      **Automatic Pricing:**
+      - For currencies (USD, BRL, EUR): unitPrice = 1 (automatic)
+      - For other assets (BTC, ETH, AAPL): unitPrice = current average price (automatic)
       
       **Requirements:**
       - Both portfolios must contain the same asset
       - Source portfolio must have sufficient balance
       - User must own both portfolios
+      
+      **Note:** Unit price is calculated automatically based on asset type and current portfolio state.
     `,
   })
   @ApiResponse({

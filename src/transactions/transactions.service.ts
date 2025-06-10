@@ -451,8 +451,7 @@ export class TransactionsService {
     sourceTransaction: Transaction;
     targetTransaction: Transaction;
   }> {
-    const { sourcePortfolioId, targetPortfolioId, unitPrice } =
-      createTransferDto;
+    const { sourcePortfolioId, targetPortfolioId } = createTransferDto;
 
     // 🔍 VALIDAÇÕES INICIAIS
     const sourcePortfolio = await this.portfoliosService.findOne(
@@ -480,25 +479,10 @@ export class TransactionsService {
     if (isCurrencyTransfer) {
       // 💰 TRANSFERÊNCIA DE MOEDA
       console.log(`🏦 Currency transfer: ${sourcePortfolio.asset.code}`);
-
-      // Para moedas, unitPrice é sempre 1 ou pode ser omitido
-      const finalDto = {
-        ...createTransferDto,
-        unitPrice: CurrencyHelper.getDefaultUnitPrice(), // Sempre 1 para moedas
-      };
-
-      return await this.createCurrencyTransfer(finalDto, userId);
+      return await this.createCurrencyTransfer(createTransferDto, userId);
     } else {
-      // 🪙 TRANSFERÊNCIA DE ATIVO
+      // 💎 TRANSFERÊNCIA DE ATIVO
       console.log(`💎 Asset transfer: ${sourcePortfolio.asset.code}`);
-
-      // Para ativos, unitPrice é obrigatório
-      if (!unitPrice) {
-        throw new BadRequestException(
-          `Unit price is required for ${sourcePortfolio.asset.name} transfers`,
-        );
-      }
-
       return await this.createAssetTransfer(createTransferDto, userId);
     }
   }
@@ -599,15 +583,10 @@ export class TransactionsService {
       sourcePortfolioId,
       targetPortfolioId,
       quantity,
-      unitPrice,
       transactionDate,
       fee = 0,
       notes,
     } = createTransferDto;
-
-    console.log(
-      `🔄 Creating asset transfer: ${quantity} units at ${unitPrice} from portfolio ${sourcePortfolioId} to ${targetPortfolioId}`,
-    );
 
     // 🔍 VALIDAÇÕES ESPECÍFICAS PARA ATIVOS
     const sourcePortfolio = await this.portfoliosService.findOne(
@@ -617,6 +596,25 @@ export class TransactionsService {
     const targetPortfolio = await this.portfoliosService.findOne(
       targetPortfolioId,
       userId,
+    );
+
+    // 💰 CALCULAR PREÇO UNITÁRIO AUTOMATICAMENTE BASEADO NO PREÇO MÉDIO ATUAL
+    const sourceTransactions = await this.findAllByPortfolioId(
+      sourcePortfolioId,
+      userId,
+    );
+    let unitPrice = 1; // Valor padrão se não há transações
+
+    if (sourceTransactions.length > 0) {
+      const positionMetrics =
+        this.financialCalculationsService.calculatePositionMetrics(
+          sourceTransactions,
+        );
+      unitPrice = positionMetrics.averagePrice || 1; // Usar preço médio atual ou 1 se zero
+    }
+
+    console.log(
+      `🔄 Creating asset transfer: ${quantity} units at ${unitPrice} (auto-calculated) from portfolio ${sourcePortfolioId} to ${targetPortfolioId}`,
     );
 
     // Validar se ambos são ativos (não moedas)
@@ -657,7 +655,7 @@ export class TransactionsService {
         sendReason.transactionTypeId,
         sendReason.id,
         quantity,
-        unitPrice!,
+        unitPrice,
         transactionDate,
         fee,
         notes
@@ -672,7 +670,7 @@ export class TransactionsService {
         receiveReason.transactionTypeId,
         receiveReason.id,
         quantity,
-        unitPrice!,
+        unitPrice,
         transactionDate,
         0, // Taxa aplicada apenas na origem
         notes
