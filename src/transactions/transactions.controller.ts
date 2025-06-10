@@ -33,13 +33,32 @@ export class TransactionsController {
   constructor(private readonly transactionsService: TransactionsService) {}
 
   @Post()
-  @ApiOperation({ summary: 'Create a new transaction' })
+  @ApiOperation({
+    summary: 'Create a new transaction',
+    description: `
+      Creates a new transaction (buy, sell, deposit, withdrawal, etc.).
+      
+      **Important:** Transfers cannot be created using this endpoint.
+      Use POST /transactions/transfer for automatic linked transfers between portfolios.
+      
+      **Supported transaction types:**
+      - Buy operations
+      - Sell operations  
+      - Deposits
+      - Withdrawals
+      - Other non-transfer transactions
+    `,
+  })
   @ApiResponse({
     status: 201,
     description: 'The transaction has been successfully created',
     type: TransactionResponseDto,
   })
-  @ApiResponse({ status: 400, description: 'Invalid data' })
+  @ApiResponse({
+    status: 400,
+    description:
+      'Invalid data or attempt to create transfer transaction manually',
+  })
   @ApiResponse({
     status: 404,
     description: 'Portfolio or Transaction Type not found',

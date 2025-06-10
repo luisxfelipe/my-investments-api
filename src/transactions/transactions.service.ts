@@ -15,6 +15,7 @@ import { PortfoliosService } from 'src/portfolios/portfolios.service';
 import { FinancialCalculationsService } from '../shared/services/financial-calculations.service';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Transaction } from './entities/transaction.entity';
+import { TransactionReason } from 'src/transaction-reasons/entities/transaction-reason.entity';
 import { PaginatedResponseDto } from 'src/dtos/paginated-response.dto';
 import {
   TransactionTypeHelper,
@@ -49,9 +50,10 @@ export class TransactionsService {
     createTransactionDto: CreateTransactionDto,
     userId: number,
   ): Promise<Transaction> {
-    // Validar portfólio e permissões
-    await this.validatePortfolioAccess(
+    // ✅ VALIDAÇÕES UNIFICADAS
+    await this.validateTransactionCommon(
       createTransactionDto.portfolioId,
+      createTransactionDto.transactionDate,
       userId,
     );
 
@@ -60,45 +62,38 @@ export class TransactionsService {
       createTransactionDto.transactionReasonId,
     );
 
-    // ✅ VALIDAÇÃO DE DATA: Verificar se a data não é anterior à última transação
-    await this.validateTransactionDate(
-      createTransactionDto.portfolioId,
-      createTransactionDto.transactionDate,
-    );
-
-    // ✅ VALIDAÇÃO SIMPLES: Se é SAÍDA → verificar saldo, Se é ENTRADA → permitir sempre
-    if (TransactionTypeHelper.isSaida(transactionReason.transactionTypeId)) {
-      const existingTransactions = await this.findAllByPortfolioId(
-        createTransactionDto.portfolioId,
+    // 🚫 BLOQUEAR CRIAÇÃO MANUAL DE TRANSFERÊNCIAS
+    if (
+      TransactionReasonHelper.isAnyTransfer(
+        createTransactionDto.transactionReasonId,
+      )
+    ) {
+      throw new BadRequestException(
+        `Transferências não podem ser criadas individualmente através deste endpoint. ` +
+          `Use o endpoint POST /transactions/transfer para criar transferências automáticas ` +
+          `entre portfólios, que garante consistência e vinculação adequada das transações.`,
       );
-
-      const validationResult = this.validateTransaction(
-        existingTransactions,
-        'SELL',
-        createTransactionDto.quantity,
-      );
-
-      if (!validationResult.isValid) {
-        throw new BadRequestException(validationResult.message);
-      }
     }
 
-    // 🧮 CÁLCULO UNIFICADO - Garantir consistência com update()
-    const calculatedValues = await this.calculateTransactionValues(
+    // ✅ VALIDAÇÃO DE SALDO UNIFICADA: Se é SAÍDA → verificar saldo, Se é ENTRADA → permitir sempre
+    if (TransactionTypeHelper.isSaida(transactionReason.transactionTypeId)) {
+      await this.validateAvailableBalance(
+        createTransactionDto.portfolioId,
+        createTransactionDto.quantity,
+      );
+    }
+
+    // ✅ CRIAÇÃO UNIFICADA COM CÁLCULOS
+    const savedTransaction = await this.createTransactionWithCalculatedValues(
       createTransactionDto.portfolioId,
+      transactionReason.transactionTypeId,
+      createTransactionDto.transactionReasonId,
       createTransactionDto.quantity,
       createTransactionDto.unitPrice,
+      createTransactionDto.transactionDate,
       createTransactionDto.fee || 0,
-      createTransactionDto.transactionReasonId,
-      transactionReason.transactionTypeId,
+      createTransactionDto.notes,
     );
-
-    const transaction = this.repository.create({
-      ...createTransactionDto,
-      ...calculatedValues, // totalValue, currentBalance, averagePrice
-    });
-
-    const savedTransaction = await this.repository.save(transaction);
 
     return savedTransaction;
   }
@@ -445,164 +440,6 @@ export class TransactionsService {
   }
 
   /**
-   * Cria uma transferência entre dois portfólios de moeda fiduciária
-   * Cria duas transações vinculadas: uma saída no portfólio origem e uma entrada no destino
-   * @param createTransferDto Dados da transferência
-   * @param userId ID do usuário logado
-   */
-  async createTransfer(
-    createTransferDto: CreateTransferDto,
-    userId: number,
-  ): Promise<{
-    sourceTransaction: Transaction;
-    targetTransaction: Transaction;
-  }> {
-    const {
-      sourcePortfolioId,
-      targetPortfolioId,
-      quantity,
-      transactionDate,
-      fee = 0,
-      notes,
-    } = createTransferDto;
-
-    // Valida se os portfólios existem e pertencem ao usuário
-    const sourcePortfolio = await this.portfoliosService.findOne(
-      sourcePortfolioId,
-      userId,
-    );
-    const targetPortfolio = await this.portfoliosService.findOne(
-      targetPortfolioId,
-      userId,
-    );
-
-    // Valida se ambos os portfólios são do tipo moeda
-    if (
-      !CurrencyHelper.isCurrencyPortfolio(sourcePortfolio.asset.assetTypeId)
-    ) {
-      throw new BadRequestException(
-        `Source portfolio (ID: ${sourcePortfolioId}) is not a currency portfolio`,
-      );
-    }
-
-    if (
-      !CurrencyHelper.isCurrencyPortfolio(targetPortfolio.asset.assetTypeId)
-    ) {
-      throw new BadRequestException(
-        `Target portfolio (ID: ${targetPortfolioId}) is not a currency portfolio`,
-      );
-    }
-
-    // Obtém as transações do portfólio de origem
-    const sourceTransactions = await this.findAllByPortfolioId(
-      sourcePortfolioId,
-      userId,
-    );
-
-    const availableBalance =
-      CurrencyHelper.calculateAvailableBalance(sourceTransactions);
-
-    // Verifica se há saldo suficiente para a transferência
-    if (availableBalance < quantity) {
-      throw new BadRequestException(
-        `Insufficient balance in source portfolio. Available: ${availableBalance}, Requested: ${quantity}`,
-      );
-    }
-
-    // ✅ VALIDAÇÃO DE DATA: Verificar se a data não é anterior à última transação em ambos os portfólios
-    await this.validateTransactionDate(sourcePortfolioId, transactionDate);
-    await this.validateTransactionDate(targetPortfolioId, transactionDate);
-
-    // Obtém as razões de transação para transferência enviada e recebida
-    const sendReasonPromise = this.transactionReasonsService.findByReason(
-      TRANSACTION_REASON_NAMES.TRANSFERENCIA_ENVIADA,
-    );
-    const receiveReasonPromise = this.transactionReasonsService.findByReason(
-      TRANSACTION_REASON_NAMES.TRANSFERENCIA_RECEBIDA,
-    );
-
-    const [sendReason, receiveReason] = await Promise.all([
-      sendReasonPromise,
-      receiveReasonPromise,
-    ]);
-
-    // Preço unitário para moedas é sempre 1
-    const unitPrice = CurrencyHelper.getDefaultUnitPrice();
-
-    // Calcular saldo e preço médio para transação de origem (saída)
-    const { newBalance: newSourceBalance, newAvgPrice: sourceAvgPrice } =
-      await this.calculateBalanceAndPrice(
-        sourcePortfolioId,
-        quantity,
-        unitPrice,
-        sendReason.id,
-        sendReason.transactionTypeId,
-      );
-
-    // Cria a transação de saída (transferência enviada)
-    const sourceTransaction = this.repository.create({
-      portfolioId: sourcePortfolioId,
-      transactionTypeId: sendReason.transactionTypeId,
-      transactionReasonId: sendReason.id,
-      quantity,
-      unitPrice,
-      totalValue: quantity * unitPrice - fee,
-      transactionDate,
-      fee,
-      notes: notes
-        ? `${notes} - Transfer to portfolio #${targetPortfolioId}`
-        : `Transfer to portfolio #${targetPortfolioId}`,
-      currentBalance: newSourceBalance,
-      averagePrice: sourceAvgPrice,
-    });
-
-    // Salva a transação de origem
-    const savedSourceTransaction =
-      await this.repository.save(sourceTransaction);
-
-    // Calcular saldo e preço médio para transação de destino (entrada)
-    const { newBalance: newTargetBalance, newAvgPrice: targetAvgPrice } =
-      await this.calculateBalanceAndPrice(
-        targetPortfolioId,
-        quantity,
-        unitPrice,
-        receiveReason.id,
-        receiveReason.transactionTypeId,
-      );
-
-    const targetTransaction = this.repository.create({
-      portfolioId: targetPortfolioId,
-      transactionTypeId: receiveReason.transactionTypeId,
-      transactionReasonId: receiveReason.id,
-      quantity,
-      unitPrice,
-      totalValue: quantity * unitPrice,
-      transactionDate,
-      fee: 0, // A taxa é aplicada apenas na origem
-      notes: notes
-        ? `${notes} - Transfer from portfolio #${sourcePortfolioId}`
-        : `Transfer from portfolio #${sourcePortfolioId}`,
-      linkedTransactionId: savedSourceTransaction.id,
-      currentBalance: newTargetBalance,
-      averagePrice: targetAvgPrice,
-    });
-
-    // Salva a transação de destino
-    const savedTargetTransaction =
-      await this.repository.save(targetTransaction);
-
-    // Atualiza a transação de origem com a referência para a transação de destino
-    savedSourceTransaction.linkedTransactionId = savedTargetTransaction.id;
-    await this.repository.save(savedSourceTransaction);
-
-    // Retorna as duas transações vinculadas
-    return {
-      sourceTransaction: savedSourceTransaction,
-      targetTransaction: savedTargetTransaction,
-    };
-  }
-
-  /**
    * Cria transferência unificada - detecta automaticamente se é moeda ou ativo
    * @param createTransferDto Dados da transferência
    * @param userId ID do usuário
@@ -667,7 +504,7 @@ export class TransactionsService {
   }
 
   /**
-   * Transferência específica para moedas (lógica atual)
+   * Transferência específica para moedas (REFATORADA - usando métodos unificados)
    */
   private async createCurrencyTransfer(
     createTransferDto: CreateTransferDto,
@@ -676,12 +513,80 @@ export class TransactionsService {
     sourceTransaction: Transaction;
     targetTransaction: Transaction;
   }> {
-    // 💰 Usar lógica atual do createTransfer
-    return await this.createTransfer(createTransferDto, userId);
+    const {
+      sourcePortfolioId,
+      targetPortfolioId,
+      quantity,
+      transactionDate,
+      fee = 0,
+      notes,
+    } = createTransferDto;
+
+    // ✅ VALIDAÇÕES UNIFICADAS
+    await this.validateTransactionCommon(
+      sourcePortfolioId,
+      transactionDate,
+      userId,
+    );
+    await this.validateTransactionCommon(
+      targetPortfolioId,
+      transactionDate,
+      userId,
+    );
+
+    // ✅ VALIDAÇÃO DE SALDO UNIFICADA
+    await this.validateAvailableBalance(sourcePortfolioId, quantity, userId);
+
+    // ✅ BUSCA DE RAZÕES UNIFICADA
+    const { sendReason, receiveReason } = await this.getTransferReasons();
+
+    const unitPrice = CurrencyHelper.getDefaultUnitPrice();
+
+    // ✅ CRIAR TRANSAÇÃO DE ORIGEM COM MÉTODO UNIFICADO
+    const sourceTransaction = await this.createTransactionWithCalculatedValues(
+      sourcePortfolioId,
+      sendReason.transactionTypeId,
+      sendReason.id,
+      quantity,
+      unitPrice,
+      transactionDate,
+      fee,
+      notes
+        ? `${notes} - Transfer to portfolio #${targetPortfolioId}`
+        : `Transfer to portfolio #${targetPortfolioId}`,
+    );
+
+    // ✅ CRIAR TRANSAÇÃO DE DESTINO COM MÉTODO UNIFICADO
+    const targetTransaction = await this.createTransactionWithCalculatedValues(
+      targetPortfolioId,
+      receiveReason.transactionTypeId,
+      receiveReason.id,
+      quantity,
+      unitPrice,
+      transactionDate,
+      0, // Taxa aplicada apenas na origem
+      notes
+        ? `${notes} - Transfer from portfolio #${sourcePortfolioId}`
+        : `Transfer from portfolio #${sourcePortfolioId}`,
+      sourceTransaction.id, // linkedTransactionId
+    );
+
+    // Vincular transações
+    sourceTransaction.linkedTransactionId = targetTransaction.id;
+    await this.repository.save(sourceTransaction);
+
+    console.log(`🏦 Currency transfer completed: ${quantity} units`);
+
+    return {
+      sourceTransaction,
+      targetTransaction,
+    };
   }
 
   /**
-   * Transferência específica para ativos não-monetários
+   * ✅ REFATORADO: Transferência específica para ativos usando métodos auxiliares unificados
+   * Elimina duplicações usando validateTransactionCommon(), validateAvailableBalance(),
+   * getTransferReasons() e createTransactionWithCalculatedValues()
    */
   private async createAssetTransfer(
     createTransferDto: CreateTransferDto,
@@ -699,6 +604,10 @@ export class TransactionsService {
       fee = 0,
       notes,
     } = createTransferDto;
+
+    console.log(
+      `🔄 Creating asset transfer: ${quantity} units at ${unitPrice} from portfolio ${sourcePortfolioId} to ${targetPortfolioId}`,
+    );
 
     // 🔍 VALIDAÇÕES ESPECÍFICAS PARA ATIVOS
     const sourcePortfolio = await this.portfoliosService.findOne(
@@ -723,108 +632,54 @@ export class TransactionsService {
       );
     }
 
-    // Verificar saldo disponível usando o serviço de cálculos financeiros
-    const sourceTransactions = await this.findAllByPortfolioId(
+    // ✅ VALIDAÇÃO UNIFICADA: Usar método auxiliar para validar data
+    await this.validateTransactionCommon(
       sourcePortfolioId,
+      transactionDate,
+      userId,
+    );
+    await this.validateTransactionCommon(
+      targetPortfolioId,
+      transactionDate,
       userId,
     );
 
-    if (sourceTransactions.length > 0) {
-      const availableBalance =
-        this.financialCalculationsService.calculatePositionMetrics(
-          sourceTransactions,
-        ).quantity;
+    // ✅ VALIDAÇÃO UNIFICADA: Usar método auxiliar para validar saldo disponível
+    await this.validateAvailableBalance(sourcePortfolioId, quantity, userId);
 
-      if (availableBalance < quantity) {
-        throw new BadRequestException(
-          `Insufficient balance in source portfolio. Available: ${availableBalance}, Requested: ${quantity}`,
-        );
-      }
-    } else {
-      throw new BadRequestException(
-        `Source portfolio has no transactions or insufficient balance`,
-      );
-    }
+    // ✅ BUSCA UNIFICADA: Usar método auxiliar para obter razões de transferência
+    const { sendReason, receiveReason } = await this.getTransferReasons();
 
-    // ✅ VALIDAÇÃO DE DATA
-    await this.validateTransactionDate(sourcePortfolioId, transactionDate);
-    await this.validateTransactionDate(targetPortfolioId, transactionDate);
-
-    // Obter razões de transação para transferência
-    const sendReasonPromise = this.transactionReasonsService.findByReason(
-      TRANSACTION_REASON_NAMES.TRANSFERENCIA_ENVIADA,
-    );
-    const receiveReasonPromise = this.transactionReasonsService.findByReason(
-      TRANSACTION_REASON_NAMES.TRANSFERENCIA_RECEBIDA,
-    );
-
-    const [sendReason, receiveReason] = await Promise.all([
-      sendReasonPromise,
-      receiveReasonPromise,
-    ]);
-
-    // 🧮 CALCULAR VALORES PARA TRANSAÇÃO DE ORIGEM (SAÍDA)
-    const sourceValues = await this.calculateTransactionValues(
-      sourcePortfolioId,
-      quantity,
-      unitPrice!,
-      fee,
-      sendReason.id,
-      sendReason.transactionTypeId,
-    );
-
-    // Criar transação de saída
-    const sourceTransaction = this.repository.create({
-      portfolioId: sourcePortfolioId,
-      transactionTypeId: sendReason.transactionTypeId,
-      transactionReasonId: sendReason.id,
-      quantity,
-      unitPrice: unitPrice!,
-      totalValue: sourceValues.totalValue,
-      transactionDate,
-      fee,
-      notes: notes
-        ? `${notes} - Transfer to portfolio #${targetPortfolioId}`
-        : `Transfer to portfolio #${targetPortfolioId}`,
-      currentBalance: sourceValues.currentBalance,
-      averagePrice: sourceValues.averagePrice,
-    });
-
-    // Salvar transação de origem
+    // ✅ CRIAÇÃO UNIFICADA: Usar método auxiliar para criar transação de origem
     const savedSourceTransaction =
-      await this.repository.save(sourceTransaction);
+      await this.createTransactionWithCalculatedValues(
+        sourcePortfolioId,
+        sendReason.transactionTypeId,
+        sendReason.id,
+        quantity,
+        unitPrice!,
+        transactionDate,
+        fee,
+        notes
+          ? `${notes} - Transfer to portfolio #${targetPortfolioId}`
+          : `Transfer to portfolio #${targetPortfolioId}`,
+      );
 
-    // 🧮 CALCULAR VALORES PARA TRANSAÇÃO DE DESTINO (ENTRADA)
-    const targetValues = await this.calculateTransactionValues(
-      targetPortfolioId,
-      quantity,
-      unitPrice!,
-      0, // Taxa aplicada apenas na origem
-      receiveReason.id,
-      receiveReason.transactionTypeId,
-    );
-
-    // Criar transação de destino
-    const targetTransaction = this.repository.create({
-      portfolioId: targetPortfolioId,
-      transactionTypeId: receiveReason.transactionTypeId,
-      transactionReasonId: receiveReason.id,
-      quantity,
-      unitPrice: unitPrice!,
-      totalValue: targetValues.totalValue,
-      transactionDate,
-      fee: 0, // Taxa aplicada apenas na origem
-      notes: notes
-        ? `${notes} - Transfer from portfolio #${sourcePortfolioId}`
-        : `Transfer from portfolio #${sourcePortfolioId}`,
-      linkedTransactionId: savedSourceTransaction.id,
-      currentBalance: targetValues.currentBalance,
-      averagePrice: targetValues.averagePrice,
-    });
-
-    // Salvar transação de destino
+    // ✅ CRIAÇÃO UNIFICADA: Usar método auxiliar para criar transação de destino
     const savedTargetTransaction =
-      await this.repository.save(targetTransaction);
+      await this.createTransactionWithCalculatedValues(
+        targetPortfolioId,
+        receiveReason.transactionTypeId,
+        receiveReason.id,
+        quantity,
+        unitPrice!,
+        transactionDate,
+        0, // Taxa aplicada apenas na origem
+        notes
+          ? `${notes} - Transfer from portfolio #${sourcePortfolioId}`
+          : `Transfer from portfolio #${sourcePortfolioId}`,
+        savedSourceTransaction.id, // linkedTransactionId
+      );
 
     // Atualizar transação de origem com referência para a de destino
     savedSourceTransaction.linkedTransactionId = savedTargetTransaction.id;
@@ -838,6 +693,117 @@ export class TransactionsService {
       sourceTransaction: savedSourceTransaction,
       targetTransaction: savedTargetTransaction,
     };
+  }
+
+  /**
+   * ✅ MÉTODO AUXILIAR UNIFICADO: Executa todas as validações comuns para transações
+   * Elimina duplicação entre create(), update(), createCurrencyTransfer(), createAssetTransfer()
+   */
+  private async validateTransactionCommon(
+    portfolioId: number,
+    transactionDate: Date,
+    userId: number,
+    excludeTransactionId?: number,
+  ): Promise<void> {
+    // ✅ Validação de acesso ao portfolio
+    await this.validatePortfolioAccess(portfolioId, userId);
+
+    // ✅ Validação de data
+    await this.validateTransactionDate(
+      portfolioId,
+      transactionDate,
+      excludeTransactionId,
+    );
+  }
+
+  /**
+   * ✅ MÉTODO AUXILIAR UNIFICADO: Valida saldo disponível de forma consistente
+   * Elimina diferentes implementações entre create(), createCurrencyTransfer(), createAssetTransfer()
+   */
+  private async validateAvailableBalance(
+    portfolioId: number,
+    requiredQuantity: number,
+    userId?: number,
+  ): Promise<void> {
+    const transactions = await this.findAllByPortfolioId(portfolioId, userId);
+
+    if (transactions.length === 0) {
+      throw new BadRequestException(
+        `Portfolio has no transactions or insufficient balance`,
+      );
+    }
+
+    const validationResult = this.validateTransaction(
+      transactions,
+      'SELL',
+      requiredQuantity,
+    );
+
+    if (!validationResult.isValid) {
+      throw new BadRequestException(validationResult.message);
+    }
+  }
+
+  /**
+   * ✅ MÉTODO AUXILIAR UNIFICADO: Busca razões de transação para transferências
+   * Elimina duplicação entre createCurrencyTransfer() e createAssetTransfer()
+   */
+  private async getTransferReasons(): Promise<{
+    sendReason: TransactionReason;
+    receiveReason: TransactionReason;
+  }> {
+    const [sendReason, receiveReason] = await Promise.all([
+      this.transactionReasonsService.findByReason(
+        TRANSACTION_REASON_NAMES.TRANSFERENCIA_ENVIADA,
+      ),
+      this.transactionReasonsService.findByReason(
+        TRANSACTION_REASON_NAMES.TRANSFERENCIA_RECEBIDA,
+      ),
+    ]);
+
+    return { sendReason, receiveReason };
+  }
+
+  /**
+   * ✅ MÉTODO AUXILIAR UNIFICADO: Cria transação usando método unificado de cálculo
+   * Elimina duplicação de criação manual entre todos os métodos
+   */
+  private async createTransactionWithCalculatedValues(
+    portfolioId: number,
+    transactionTypeId: number,
+    transactionReasonId: number,
+    quantity: number,
+    unitPrice: number,
+    transactionDate: Date,
+    fee: number = 0,
+    notes?: string,
+    linkedTransactionId?: number,
+  ): Promise<Transaction> {
+    // ✅ CÁLCULOS UNIFICADOS
+    const calculatedValues = await this.calculateTransactionValues(
+      portfolioId,
+      quantity,
+      unitPrice,
+      fee,
+      transactionReasonId,
+      transactionTypeId,
+    );
+
+    // ✅ CRIAR TRANSAÇÃO COM VALORES CALCULADOS
+    const transaction = this.repository.create({
+      portfolioId,
+      transactionTypeId,
+      transactionReasonId,
+      quantity,
+      unitPrice,
+      transactionDate,
+      fee,
+      notes,
+      linkedTransactionId,
+      ...calculatedValues, // totalValue, currentBalance, averagePrice
+    });
+
+    return await this.repository.save(transaction);
   }
 
   /**
