@@ -60,26 +60,36 @@ export class TransactionsService {
       createTransactionDto.transactionReasonId,
     );
 
+    // ✅ VERIFICAR SE É A PRIMEIRA TRANSAÇÃO DO PORTFÓLIO
+    const existingTransactions = await this.findAllByPortfolioId(
+      createTransactionDto.portfolioId,
+    );
+
+    const isFirstTransaction = existingTransactions.length === 0;
+
+    // ✅ VALIDAÇÃO PARA PRIMEIRA TRANSAÇÃO
+    if (isFirstTransaction) {
+      await this.validateFirstTransaction(
+        createTransactionDto.portfolioId,
+        transactionReason.transactionTypeId,
+        createTransactionDto.transactionReasonId,
+        userId,
+      );
+    }
+
     // ✅ VALIDAÇÃO DE DATA: Verificar se a data não é anterior à última transação
     await this.validateTransactionDate(
       createTransactionDto.portfolioId,
       createTransactionDto.transactionDate,
     );
 
-    // ✅ VALIDAÇÃO SEGURA: Verificar saldo para vendas (SAÍDA)
-    if (TransactionTypeHelper.isSaida(transactionReason.transactionTypeId)) {
-      // Verificar se o portfolio existe e pertence ao usuário
-      await this.portfoliosService.findOne(
-        createTransactionDto.portfolioId,
-        userId,
-      );
-
-      // Buscar transações e validar saldo disponível
-      const transactions = await this.findAllByPortfolioId(
-        createTransactionDto.portfolioId,
-      );
+    // ✅ VALIDAÇÃO SEGURA: Verificar saldo para vendas (SAÍDA) - apenas para transações subsequentes
+    if (
+      !isFirstTransaction &&
+      TransactionTypeHelper.isSaida(transactionReason.transactionTypeId)
+    ) {
       const validationResult = this.validateTransaction(
-        transactions,
+        existingTransactions,
         'SELL',
         createTransactionDto.quantity,
       );
@@ -759,6 +769,42 @@ export class TransactionsService {
     userId: number,
   ): Promise<void> {
     await this.portfoliosService.findOne(portfolioId, userId);
+  }
+
+  /**
+   * Valida se o tipo de transação é permitido como primeira transação do portfólio
+   * @param portfolioId ID do portfolio
+   * @param transactionTypeId ID do tipo da transação
+   * @param transactionReasonId ID da razão da transação
+   * @param userId ID do usuário
+   */
+  private async validateFirstTransaction(
+    portfolioId: number,
+    transactionTypeId: number,
+    transactionReasonId: number,
+    userId: number,
+  ): Promise<void> {
+    // Para primeira transação, apenas tipos de ENTRADA são permitidos
+    if (!TransactionTypeHelper.isEntrada(transactionTypeId)) {
+      throw new BadRequestException(
+        'A primeira transação de um portfólio deve ser uma operação de entrada (compra, depósito ou transferência recebida)',
+      );
+    }
+
+    // Obter informações do portfólio para validações específicas
+    const portfolio = await this.portfoliosService.findOne(portfolioId, userId);
+
+    // Para ativos que não são moeda, a primeira transação deve ser uma COMPRA
+    if (!CurrencyHelper.isCurrencyPortfolio(portfolio.asset.assetTypeId)) {
+      if (!TransactionReasonHelper.isCompra(transactionReasonId)) {
+        throw new BadRequestException(
+          'A primeira transação de um portfólio de ativo deve ser uma COMPRA',
+        );
+      }
+    }
+
+    // Para moedas fiduciárias, permitir DEPÓSITO, COMPRA ou TRANSFERÊNCIA RECEBIDA
+    // (validação já está implícita no check de ENTRADA acima)
   }
 
   /**
