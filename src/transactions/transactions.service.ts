@@ -83,22 +83,19 @@ export class TransactionsService {
       }
     }
 
-    // Calcular novos valores de saldo e preço médio
-    const { newBalance, newAvgPrice } = await this.calculateBalanceAndPrice(
+    // 🧮 CÁLCULO UNIFICADO - Garantir consistência com update()
+    const calculatedValues = await this.calculateTransactionValues(
       createTransactionDto.portfolioId,
       createTransactionDto.quantity,
       createTransactionDto.unitPrice,
+      createTransactionDto.fee || 0,
       createTransactionDto.transactionReasonId,
       transactionReason.transactionTypeId,
     );
 
     const transaction = this.repository.create({
       ...createTransactionDto,
-      totalValue:
-        createTransactionDto.quantity * createTransactionDto.unitPrice -
-        (createTransactionDto.fee || 0),
-      currentBalance: newBalance,
-      averagePrice: newAvgPrice,
+      ...calculatedValues, // totalValue, currentBalance, averagePrice
     });
 
     const savedTransaction = await this.repository.save(transaction);
@@ -256,81 +253,45 @@ export class TransactionsService {
       );
     }
 
-    // ✅ VALIDAÇÃO SEGURA: Verificar saldo para vendas
-    const isAlreadySale = TransactionTypeHelper.isSaida(
-      transaction.transactionTypeId,
+    // 🧮 DETECTAR NECESSIDADE DE RECÁLCULO
+    const needsRecalculation = this.shouldRecalculate(
+      transaction,
+      updateTransactionDto,
     );
-    const isChangingQuantity = updateTransactionDto.quantity !== undefined;
 
-    if (isAlreadySale && isChangingQuantity) {
-      const portfolioId = transaction.portfolioId;
+    // 🧮 USAR MÉTODO UNIFICADO PARA CALCULAR VALORES
+    let calculatedValues: {
+      totalValue?: number;
+      currentBalance?: number;
+      averagePrice?: number;
+    } = {};
 
-      // Nova quantidade da transação
-      const newTransactionQuantity =
-        updateTransactionDto.quantity || transaction.quantity;
-
-      // Para validação de vendas, sempre usar recálculo seguro
-      // Recalcular considerando que vamos remover a transação atual
-      const transactions = await this.findAllByPortfolioId(portfolioId);
-      const transactionsWithoutCurrent = transactions.filter(
-        (t) => t.id !== transaction.id,
+    if (needsRecalculation.totalValue || needsRecalculation.balanceAndPrice) {
+      console.log(`🔄 Recalculando transação ${id}:`, needsRecalculation);
+      calculatedValues = await this.calculateTransactionValues(
+        transaction.portfolioId,
+        updateTransactionDto.quantity ?? transaction.quantity,
+        updateTransactionDto.unitPrice ?? transaction.unitPrice,
+        updateTransactionDto.fee ?? transaction.fee ?? 0,
+        transaction.transactionReasonId, // Não pode ser alterado
+        transaction.transactionTypeId, // Não pode ser alterado
       );
-
-      // Calcular saldo total sem a transação atual
-      let balanceWithoutCurrent = 0;
-      let currentAvgPrice = 0;
-
-      for (const t of transactionsWithoutCurrent) {
-        const transactionReason = await this.transactionReasonsService.findOne(
-          t.transactionReasonId,
-        );
-        const result = this.calculateBalanceAndPriceFromValues(
-          balanceWithoutCurrent,
-          currentAvgPrice,
-          t.quantity,
-          t.unitPrice,
-          t.transactionReasonId,
-          transactionReason.transactionTypeId,
-        );
-        balanceWithoutCurrent = result.newBalance;
-        currentAvgPrice = result.newAvgPrice;
-      }
-
-      if (balanceWithoutCurrent < newTransactionQuantity) {
-        throw new BadRequestException(
-          `Insufficient balance for sale. ` +
-            `Available: ${balanceWithoutCurrent}, ` +
-            `Attempted: ${newTransactionQuantity}`,
-        );
-      }
     }
 
-    // Calculate totalValue based on the final values
-    const finalQuantity =
-      updateTransactionDto.quantity !== undefined
-        ? updateTransactionDto.quantity
-        : transaction.quantity;
-    const finalUnitPrice =
-      updateTransactionDto.unitPrice !== undefined
-        ? updateTransactionDto.unitPrice
-        : transaction.unitPrice;
-    const finalFee =
-      updateTransactionDto.fee !== undefined
-        ? updateTransactionDto.fee
-        : transaction.fee;
-
-    const calculatedTotalValue =
-      finalQuantity * finalUnitPrice - (finalFee || 0);
-
+    // Merge dos dados atualizados
     this.repository.merge(transaction, {
       ...updateTransactionDto,
-      totalValue: calculatedTotalValue,
+      ...calculatedValues,
     });
     const updatedTransaction = await this.repository.save(transaction);
 
-    // Recalcular todos os saldos e preços médios do portfólio
-    // já que alterar uma transação impacta todas as subsequentes
-    await this.recalculateTransactionBalances(transaction.portfolioId);
+    // ♻️ RECÁLCULO CONDICIONAL: Apenas se houve mudanças que afetam outras transações
+    if (needsRecalculation.balanceAndPrice) {
+      console.log(
+        `🔄 Recalculando portfolio ${transaction.portfolioId} após alteração da transação ${id}`,
+      );
+      await this.recalculateTransactionBalances(transaction.portfolioId);
+    }
 
     return updatedTransaction;
   }
@@ -739,6 +700,86 @@ export class TransactionsService {
     userId: number,
   ): Promise<void> {
     await this.portfoliosService.findOne(portfolioId, userId);
+  }
+
+  /**
+   * Calcula todos os valores de uma transação (totalValue, currentBalance, averagePrice)
+   * Método unificado para garantir consistência entre create() e update()
+   * @param portfolioId ID do portfolio
+   * @param quantity Quantidade da transação
+   * @param unitPrice Preço unitário
+   * @param fee Taxa da transação
+   * @param transactionReasonId ID da razão da transação
+   * @param transactionTypeId ID do tipo da transação
+   * @returns Objeto com todos os valores calculados
+   */
+  private async calculateTransactionValues(
+    portfolioId: number,
+    quantity: number,
+    unitPrice: number,
+    fee: number = 0,
+    transactionReasonId: number,
+    transactionTypeId: number,
+  ): Promise<{
+    totalValue: number;
+    currentBalance: number;
+    averagePrice: number;
+  }> {
+    // 1. Calcular totalValue (sempre igual)
+    const totalValue = quantity * unitPrice - fee;
+
+    // 2. Calcular currentBalance e averagePrice (reutilizar lógica existente)
+    const { newBalance, newAvgPrice } = await this.calculateBalanceAndPrice(
+      portfolioId,
+      quantity,
+      unitPrice,
+      transactionReasonId,
+      transactionTypeId,
+    );
+
+    return {
+      totalValue,
+      currentBalance: newBalance,
+      averagePrice: newAvgPrice,
+    };
+  }
+
+  /**
+   * Determina se a transação precisa de recálculo baseado nas alterações
+   * @param originalTransaction Transação original
+   * @param updateDto Dados de atualização
+   * @returns Objeto indicando que tipos de recálculo são necessários
+   */
+  private shouldRecalculate(
+    originalTransaction: Transaction,
+    updateDto: UpdateTransactionDto,
+  ): {
+    totalValue: boolean;
+    balanceAndPrice: boolean;
+  } {
+    const hasQuantityChange =
+      updateDto.quantity !== undefined &&
+      updateDto.quantity !== originalTransaction.quantity;
+
+    const hasUnitPriceChange =
+      updateDto.unitPrice !== undefined &&
+      updateDto.unitPrice !== originalTransaction.unitPrice;
+
+    const hasFeeChange =
+      updateDto.fee !== undefined && updateDto.fee !== originalTransaction.fee;
+
+    const hasDateChange =
+      updateDto.transactionDate !== undefined &&
+      updateDto.transactionDate.getTime() !==
+        originalTransaction.transactionDate.getTime();
+
+    return {
+      // totalValue precisa ser recalculado se quantity, unitPrice ou fee mudaram
+      totalValue: hasQuantityChange || hasUnitPriceChange || hasFeeChange,
+
+      // currentBalance e averagePrice precisam ser recalculados se quantity, unitPrice ou date mudaram
+      balanceAndPrice: hasQuantityChange || hasUnitPriceChange || hasDateChange,
+    };
   }
 
   /**
