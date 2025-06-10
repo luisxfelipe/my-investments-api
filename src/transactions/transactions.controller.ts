@@ -299,7 +299,21 @@ export class TransactionsController {
   }
 
   @Post('transfer')
-  @ApiOperation({ summary: 'Transfer value between currency portfolios' })
+  @ApiOperation({
+    summary: 'Transfer assets between portfolios',
+    description: `
+      Transfers assets between two portfolios of the same asset type.
+      
+      **Automatic Detection:**
+      - For currencies (USD, BRL, EUR): unitPrice is optional (defaults to 1)
+      - For other assets (BTC, ETH, AAPL): unitPrice is required
+      
+      **Requirements:**
+      - Both portfolios must contain the same asset
+      - Source portfolio must have sufficient balance
+      - User must own both portfolios
+    `,
+  })
   @ApiResponse({
     status: 201,
     description: 'The transfer was completed successfully',
@@ -307,7 +321,7 @@ export class TransactionsController {
   })
   @ApiResponse({
     status: 400,
-    description: 'Invalid data or insufficient balance',
+    description: 'Invalid data, insufficient balance, or asset type mismatch',
   })
   @ApiResponse({
     status: 404,
@@ -317,7 +331,7 @@ export class TransactionsController {
     @Body() createTransferDto: CreateTransferDto,
     @UserDecorator() userId: number,
   ): Promise<TransferResponseDto> {
-    const result = await this.transactionsService.createTransfer(
+    const result = await this.transactionsService.createUnifiedTransfer(
       createTransferDto,
       userId,
     );

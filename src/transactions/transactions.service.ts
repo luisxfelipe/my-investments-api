@@ -603,6 +603,244 @@ export class TransactionsService {
   }
 
   /**
+   * Cria transferência unificada - detecta automaticamente se é moeda ou ativo
+   * @param createTransferDto Dados da transferência
+   * @param userId ID do usuário
+   */
+  async createUnifiedTransfer(
+    createTransferDto: CreateTransferDto,
+    userId: number,
+  ): Promise<{
+    sourceTransaction: Transaction;
+    targetTransaction: Transaction;
+  }> {
+    const { sourcePortfolioId, targetPortfolioId, unitPrice } =
+      createTransferDto;
+
+    // 🔍 VALIDAÇÕES INICIAIS
+    const sourcePortfolio = await this.portfoliosService.findOne(
+      sourcePortfolioId,
+      userId,
+    );
+    const targetPortfolio = await this.portfoliosService.findOne(
+      targetPortfolioId,
+      userId,
+    );
+
+    // ✅ VALIDAR SE SÃO DO MESMO ATIVO
+    if (sourcePortfolio.assetId !== targetPortfolio.assetId) {
+      throw new BadRequestException(
+        `Cannot transfer between different assets. ` +
+          `Source: ${sourcePortfolio.asset.name}, Target: ${targetPortfolio.asset.name}`,
+      );
+    }
+
+    // 🧠 DETECÇÃO AUTOMÁTICA DO TIPO
+    const isCurrencyTransfer = CurrencyHelper.isCurrencyPortfolio(
+      sourcePortfolio.asset.assetTypeId,
+    );
+
+    if (isCurrencyTransfer) {
+      // 💰 TRANSFERÊNCIA DE MOEDA
+      console.log(`🏦 Currency transfer: ${sourcePortfolio.asset.code}`);
+
+      // Para moedas, unitPrice é sempre 1 ou pode ser omitido
+      const finalDto = {
+        ...createTransferDto,
+        unitPrice: CurrencyHelper.getDefaultUnitPrice(), // Sempre 1 para moedas
+      };
+
+      return await this.createCurrencyTransfer(finalDto, userId);
+    } else {
+      // 🪙 TRANSFERÊNCIA DE ATIVO
+      console.log(`💎 Asset transfer: ${sourcePortfolio.asset.code}`);
+
+      // Para ativos, unitPrice é obrigatório
+      if (!unitPrice) {
+        throw new BadRequestException(
+          `Unit price is required for ${sourcePortfolio.asset.name} transfers`,
+        );
+      }
+
+      return await this.createAssetTransfer(createTransferDto, userId);
+    }
+  }
+
+  /**
+   * Transferência específica para moedas (lógica atual)
+   */
+  private async createCurrencyTransfer(
+    createTransferDto: CreateTransferDto,
+    userId: number,
+  ): Promise<{
+    sourceTransaction: Transaction;
+    targetTransaction: Transaction;
+  }> {
+    // 💰 Usar lógica atual do createTransfer
+    return await this.createTransfer(createTransferDto, userId);
+  }
+
+  /**
+   * Transferência específica para ativos não-monetários
+   */
+  private async createAssetTransfer(
+    createTransferDto: CreateTransferDto,
+    userId: number,
+  ): Promise<{
+    sourceTransaction: Transaction;
+    targetTransaction: Transaction;
+  }> {
+    const {
+      sourcePortfolioId,
+      targetPortfolioId,
+      quantity,
+      unitPrice,
+      transactionDate,
+      fee = 0,
+      notes,
+    } = createTransferDto;
+
+    // 🔍 VALIDAÇÕES ESPECÍFICAS PARA ATIVOS
+    const sourcePortfolio = await this.portfoliosService.findOne(
+      sourcePortfolioId,
+      userId,
+    );
+    const targetPortfolio = await this.portfoliosService.findOne(
+      targetPortfolioId,
+      userId,
+    );
+
+    // Validar se ambos são ativos (não moedas)
+    if (CurrencyHelper.isCurrencyPortfolio(sourcePortfolio.asset.assetTypeId)) {
+      throw new BadRequestException(
+        `Source portfolio (ID: ${sourcePortfolioId}) is a currency portfolio. Use currency transfer logic.`,
+      );
+    }
+
+    if (CurrencyHelper.isCurrencyPortfolio(targetPortfolio.asset.assetTypeId)) {
+      throw new BadRequestException(
+        `Target portfolio (ID: ${targetPortfolioId}) is a currency portfolio. Use currency transfer logic.`,
+      );
+    }
+
+    // Verificar saldo disponível usando o serviço de cálculos financeiros
+    const sourceTransactions = await this.findAllByPortfolioId(
+      sourcePortfolioId,
+      userId,
+    );
+
+    if (sourceTransactions.length > 0) {
+      const availableBalance =
+        this.financialCalculationsService.calculatePositionMetrics(
+          sourceTransactions,
+        ).quantity;
+
+      if (availableBalance < quantity) {
+        throw new BadRequestException(
+          `Insufficient balance in source portfolio. Available: ${availableBalance}, Requested: ${quantity}`,
+        );
+      }
+    } else {
+      throw new BadRequestException(
+        `Source portfolio has no transactions or insufficient balance`,
+      );
+    }
+
+    // ✅ VALIDAÇÃO DE DATA
+    await this.validateTransactionDate(sourcePortfolioId, transactionDate);
+    await this.validateTransactionDate(targetPortfolioId, transactionDate);
+
+    // Obter razões de transação para transferência
+    const sendReasonPromise = this.transactionReasonsService.findByReason(
+      TRANSACTION_REASON_NAMES.TRANSFERENCIA_ENVIADA,
+    );
+    const receiveReasonPromise = this.transactionReasonsService.findByReason(
+      TRANSACTION_REASON_NAMES.TRANSFERENCIA_RECEBIDA,
+    );
+
+    const [sendReason, receiveReason] = await Promise.all([
+      sendReasonPromise,
+      receiveReasonPromise,
+    ]);
+
+    // 🧮 CALCULAR VALORES PARA TRANSAÇÃO DE ORIGEM (SAÍDA)
+    const sourceValues = await this.calculateTransactionValues(
+      sourcePortfolioId,
+      quantity,
+      unitPrice!,
+      fee,
+      sendReason.id,
+      sendReason.transactionTypeId,
+    );
+
+    // Criar transação de saída
+    const sourceTransaction = this.repository.create({
+      portfolioId: sourcePortfolioId,
+      transactionTypeId: sendReason.transactionTypeId,
+      transactionReasonId: sendReason.id,
+      quantity,
+      unitPrice: unitPrice!,
+      totalValue: sourceValues.totalValue,
+      transactionDate,
+      fee,
+      notes: notes
+        ? `${notes} - Transfer to portfolio #${targetPortfolioId}`
+        : `Transfer to portfolio #${targetPortfolioId}`,
+      currentBalance: sourceValues.currentBalance,
+      averagePrice: sourceValues.averagePrice,
+    });
+
+    // Salvar transação de origem
+    const savedSourceTransaction =
+      await this.repository.save(sourceTransaction);
+
+    // 🧮 CALCULAR VALORES PARA TRANSAÇÃO DE DESTINO (ENTRADA)
+    const targetValues = await this.calculateTransactionValues(
+      targetPortfolioId,
+      quantity,
+      unitPrice!,
+      0, // Taxa aplicada apenas na origem
+      receiveReason.id,
+      receiveReason.transactionTypeId,
+    );
+
+    // Criar transação de destino
+    const targetTransaction = this.repository.create({
+      portfolioId: targetPortfolioId,
+      transactionTypeId: receiveReason.transactionTypeId,
+      transactionReasonId: receiveReason.id,
+      quantity,
+      unitPrice: unitPrice!,
+      totalValue: targetValues.totalValue,
+      transactionDate,
+      fee: 0, // Taxa aplicada apenas na origem
+      notes: notes
+        ? `${notes} - Transfer from portfolio #${sourcePortfolioId}`
+        : `Transfer from portfolio #${sourcePortfolioId}`,
+      linkedTransactionId: savedSourceTransaction.id,
+      currentBalance: targetValues.currentBalance,
+      averagePrice: targetValues.averagePrice,
+    });
+
+    // Salvar transação de destino
+    const savedTargetTransaction =
+      await this.repository.save(targetTransaction);
+
+    // Atualizar transação de origem com referência para a de destino
+    savedSourceTransaction.linkedTransactionId = savedTargetTransaction.id;
+    await this.repository.save(savedSourceTransaction);
+
+    console.log(
+      `💎 Asset transfer completed: ${quantity} ${sourcePortfolio.asset.code} at ${unitPrice} each`,
+    );
+
+    return {
+      sourceTransaction: savedSourceTransaction,
+      targetTransaction: savedTargetTransaction,
+    };
+  }
+
+  /**
    * Valida se a transação é a última (mais recente) transação do portfólio
    * Apenas a última transação pode ser editada para manter a integridade cronológica
    */

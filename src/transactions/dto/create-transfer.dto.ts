@@ -8,6 +8,7 @@ import {
   IsPositive,
   IsString,
   MaxLength,
+  Min,
 } from 'class-validator';
 import { Type } from 'class-transformer';
 import { DecimalPrecision } from '../../decorators/decimal-precision.decorator';
@@ -30,16 +31,30 @@ export class CreateTransferDto {
   targetPortfolioId: number;
 
   @ApiProperty({
-    description: 'Amount to transfer',
+    description: 'Quantity to transfer',
     example: 1000,
   })
   @IsNumber()
   @IsPositive()
   @IsNotEmpty()
   @DecimalPrecision(8, {
-    message: 'Amount cannot have more than 8 decimal places',
+    message: 'Quantity cannot have more than 8 decimal places',
   })
   quantity: number;
+
+  @ApiProperty({
+    description:
+      'Unit price (required for non-currency assets, optional for currencies)',
+    example: 50.25,
+    required: false,
+  })
+  @IsOptional()
+  @IsNumber({}, { message: 'Unit price must be a number' })
+  @Min(0, { message: 'Unit price must be zero or positive' })
+  @DecimalPrecision(8, {
+    message: 'Unit price cannot have more than 8 decimal places',
+  })
+  unitPrice?: number;
 
   @ApiProperty({
     description: 'Transfer date',
@@ -51,11 +66,13 @@ export class CreateTransferDto {
   transactionDate: Date;
 
   @ApiProperty({
-    description: 'Fee (optional)',
+    description: 'Transfer fee (optional)',
     example: 0,
+    required: false,
   })
   @IsOptional()
-  @IsNumber()
+  @IsNumber({}, { message: 'Fee must be a number' })
+  @Min(0, { message: 'Fee must be zero or positive' })
   @DecimalPrecision(8, {
     message: 'Fee cannot have more than 8 decimal places',
   })
@@ -66,8 +83,8 @@ export class CreateTransferDto {
     example: 'Transfer between accounts',
     required: false,
   })
-  @IsString()
-  @MaxLength(500)
   @IsOptional()
+  @IsString({ message: 'Notes must be a string' })
+  @MaxLength(500, { message: 'Notes must be at most 500 characters' })
   notes?: string;
 }
