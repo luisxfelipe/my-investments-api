@@ -11,7 +11,7 @@ import { AuthGuard } from './auth.guard';
   imports: [
     UsersModule,
     JwtModule.registerAsync({
-      useFactory: async (configService: ConfigService) => ({
+      useFactory: (configService: ConfigService) => ({
         global: true,
         secret: configService.get('JWT_SECRET_KEY'),
         signOptions: {
@@ -22,11 +22,13 @@ import { AuthGuard } from './auth.guard';
     }),
   ],
   controllers: [AuthController],
-  providers: [AuthService,
+  providers: [
+    AuthService,
     {
       provide: APP_GUARD,
       useClass: AuthGuard,
-    },],
+    },
+  ],
   exports: [AuthService],
 })
-export class AuthModule { }
+export class AuthModule {}

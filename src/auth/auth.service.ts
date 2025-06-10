@@ -9,28 +9,28 @@ import { UserResponseDto } from 'src/users/dto/user-response.dto';
 
 @Injectable()
 export class AuthService {
-    constructor(
-        private userService: UsersService,
-        private jwtService: JwtService,
-    ) { }
+  constructor(
+    private userService: UsersService,
+    private jwtService: JwtService,
+  ) {}
 
-    async signIn(signInDto: SignInDto) {
-        const user: User | undefined = await this.userService
-            .findOneByEmail(signInDto.email)
-            .catch(() => undefined);
+  async signIn(signInDto: SignInDto) {
+    const user: User | undefined = await this.userService
+      .findOneByEmail(signInDto.email)
+      .catch(() => undefined);
 
-        if (
-            !user ||
-            !(await comparePassword(signInDto.password, user.password || ''))
-        ) {
-            throw new UnauthorizedException('Email or password invalid!');
-        }
-
-        return {
-            access_token: await this.jwtService.sign({
-                ...new SignInPayloadDto(user),
-            }),
-            user: new UserResponseDto(user),
-        };
+    if (
+      !user ||
+      !(await comparePassword(signInDto.password, user.password || ''))
+    ) {
+      throw new UnauthorizedException('Email or password invalid!');
     }
+
+    return {
+      access_token: this.jwtService.sign({
+        ...new SignInPayloadDto(user),
+      }),
+      user: new UserResponseDto(user),
+    };
+  }
 }

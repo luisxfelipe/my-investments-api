@@ -4,6 +4,16 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { UsersModule } from './users/users.module';
 import { AuthModule } from './auth/auth.module';
+import { CategoriesModule } from './categories/categories.module';
+import { AssetTypesModule } from './asset-types/asset-types.module';
+import { PlatformsModule } from './platforms/platforms.module';
+import { AssetsModule } from './assets/assets.module';
+import { TransactionTypesModule } from './transaction-types/transaction-types.module';
+import { SavingsGoalsModule } from './savings-goals/savings-goals.module';
+import { PortfoliosModule } from './portfolios/portfolios.module';
+import { TransactionsModule } from './transactions/transactions.module';
+import { AssetQuotesModule } from './asset-quotes/asset-quotes.module';
+import { TransactionReasonsModule } from './transaction-reasons/transaction-reasons.module';
 
 @Module({
   imports: [
@@ -19,6 +29,10 @@ import { AuthModule } from './auth/auth.module';
         username: configService.get<string>('DB_USER'),
         password: configService.get<string>('DB_PASSWORD'),
         database: configService.get<string>('DB_DATABASE'),
+        timezone: 'Z', // Define o timezone como UTC para o TypeORM
+        extra: {
+          timezone: 'Z', // Define o timezone como UTC para o mysql2
+        },
         entities: configService.get('DB_ENTITIES')
           ? [__dirname + configService.get('DB_ENTITIES')]
           : [__dirname + process.env.DB_ENTITIES],
@@ -38,6 +52,16 @@ import { AuthModule } from './auth/auth.module';
     }),
     UsersModule,
     AuthModule,
+    CategoriesModule,
+    AssetTypesModule,
+    PlatformsModule,
+    AssetsModule,
+    TransactionTypesModule,
+    SavingsGoalsModule,
+    PortfoliosModule,
+    TransactionsModule,
+    AssetQuotesModule,
+    TransactionReasonsModule,
   ],
   controllers: [],
   providers: [AppService],

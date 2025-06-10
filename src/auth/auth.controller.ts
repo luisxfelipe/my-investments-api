@@ -1,4 +1,11 @@
-import { Body, Controller, HttpCode, HttpStatus, Post, UnauthorizedException } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  HttpCode,
+  HttpStatus,
+  Post,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { Public } from 'src/decorators/is-public.decorator';
@@ -8,13 +15,17 @@ import { SignInResponseDto } from './dto/sign-in-response.dto';
 @ApiTags('Auth')
 @Controller('auth')
 export class AuthController {
-  constructor(private readonly authService: AuthService) { }
+  constructor(private readonly authService: AuthService) {}
 
   @Post('signin')
   @Public()
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Authenticate user with email and password' })
-  @ApiResponse({ status: 200, description: 'User authenticated successfully', type: SignInResponseDto })
+  @ApiResponse({
+    status: 200,
+    description: 'User authenticated successfully',
+    type: SignInResponseDto,
+  })
   @ApiResponse({ status: 401, description: 'Invalid credentials' })
   async signIn(@Body() signInDto: SignInDto): Promise<SignInResponseDto> {
     if (!signInDto) {
