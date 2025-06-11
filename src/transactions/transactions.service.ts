@@ -391,6 +391,19 @@ export class TransactionsService {
       );
     }
 
+    // ❌ BLOQUEAR EXCLUSÃO DE EXCHANGES VIA DELETE NORMAL
+    const isExchange = TransactionReasonHelper.isExchange(
+      transaction.transactionReasonId,
+    );
+
+    if (isExchange) {
+      throw new BadRequestException(
+        `Cannot delete exchange transactions individually. ` +
+          `Exchange transactions must be deleted as a complete unit to maintain data integrity. ` +
+          `Use DELETE /transactions/exchange/${id} to remove the complete exchange safely.`,
+      );
+    }
+
     // ✅ VALIDAÇÃO DE ORDEM CRONOLÓGICA: Verificar se é a última transação do portfólio
     await this.validateIsLastTransaction(id, transaction.portfolioId);
 

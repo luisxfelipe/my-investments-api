@@ -190,11 +190,15 @@ export class TransactionsController {
 
       **Important Restrictions:**
       - Transfer transactions cannot be deleted individually
+      - Exchange transactions cannot be deleted individually
       - Only the most recent transaction in each portfolio can be deleted
       - Maintains chronological order integrity
 
       **For Transfer Transactions:**
       Use DELETE /transactions/transfer/:id to safely remove complete transfers.
+
+      **For Exchange Transactions:**
+      Use DELETE /transactions/exchange/:id to safely remove complete exchanges.
 
       **Safety Features:**
       - Automatic portfolio balance recalculation
@@ -209,7 +213,7 @@ export class TransactionsController {
   @ApiResponse({
     status: 400,
     description:
-      'Transfer transaction (use DELETE /transactions/transfer/:id) or chronological order violation',
+      'Transfer/exchange transaction (use specific endpoints) or chronological order violation',
   })
   @ApiResponse({ status: 404, description: 'Transaction not found' })
   async remove(
