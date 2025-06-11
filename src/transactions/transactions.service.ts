@@ -247,6 +247,25 @@ export class TransactionsService {
       }
     }
 
+    // 🔒 PROTEÇÃO: Bloquear alterações em exchanges (exceto notes)
+    if (TransactionReasonHelper.isExchange(transaction.transactionReasonId)) {
+      // Permitir apenas alteração de observações
+      const allowedFields = ['notes'];
+      const providedFields = Object.keys(updateTransactionDto);
+      const blockedFields = providedFields.filter(
+        (field) => !allowedFields.includes(field),
+      );
+
+      if (blockedFields.length > 0) {
+        throw new BadRequestException(
+          `Exchange transactions cannot be modified. ` +
+            `Only notes can be edited to maintain data integrity and linked transaction consistency. ` +
+            `Blocked fields: ${blockedFields.join(', ')}. ` +
+            `To modify the exchange, delete it via DELETE /transactions/exchange/${id} and create a new one.`,
+        );
+      }
+    }
+
     // ✅ VALIDAÇÃO DE ORDEM CRONOLÓGICA: Verificar se é a última transação do portfólio
     await this.validateIsLastTransaction(id, transaction.portfolioId);
 
