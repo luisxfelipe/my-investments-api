@@ -17,6 +17,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { TransactionsService } from 'src/transactions/transactions.service';
 import { FinancialCalculationsService } from '../shared/services/financial-calculations.service';
 import { PaginatedResponseDto } from '../dtos/paginated-response.dto';
+import { PortfolioDashboardResponseDto } from './dto/portfolio-dashboard-response.dto';
 
 @Injectable()
 export class PortfoliosService {
@@ -352,5 +353,38 @@ export class PortfoliosService {
     }
 
     return updatedPortfolio;
+  }
+
+  /**
+   * Busca o dashboard/resumo de um portfolio específico
+   */
+  async getPortfolioDashboard(
+    portfolioId: number,
+    userId: number,
+  ): Promise<PortfolioDashboardResponseDto> {
+    // Verifica se o portfolio existe e pertence ao usuário
+    const portfolio = await this.findOne(portfolioId, userId);
+
+    // Buscar todas as transações deste portfolio
+    const transactions = await this.transactionsService.findAllByPortfolioId(
+      portfolioId,
+      userId,
+    );
+
+    if (transactions.length === 0) {
+      // Se não há transações, retornar dashboard vazio
+      return new PortfolioDashboardResponseDto(portfolio, 0, 0, 0);
+    }
+
+    // Calcular métricas usando o serviço de cálculos financeiros
+    const positionMetrics =
+      this.financialCalculationsService.calculatePositionMetrics(transactions);
+
+    return new PortfolioDashboardResponseDto(
+      portfolio,
+      transactions.length, // transactionCount
+      positionMetrics.averagePrice, // averagePrice
+      positionMetrics.quantity, // currentBalance
+    );
   }
 }

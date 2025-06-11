@@ -17,6 +17,7 @@ import { UpdatePortfolioDto } from './dto/update-portfolio.dto';
 import { ApiOperation, ApiParam, ApiResponse, ApiQuery } from '@nestjs/swagger';
 import { PortfolioResponseDto } from './dto/portfolio-response.dto';
 import { PaginatedPortfolioResponseDto } from './dto/paginated-portfolio-response.dto';
+import { PortfolioDashboardResponseDto } from './dto/portfolio-dashboard-response.dto';
 import { UserDecorator } from '../decorators/user.decorator';
 
 @Controller('portfolios')
@@ -115,6 +116,23 @@ export class PortfoliosController {
   ): Promise<PortfolioResponseDto> {
     const portfolio = await this.portfoliosService.findOne(+id, userId);
     return new PortfolioResponseDto(portfolio);
+  }
+
+  @Get(':id/dashboard')
+  @ApiOperation({ summary: 'Get portfolio dashboard summary' })
+  @ApiParam({ name: 'id', description: 'Portfolio id' })
+  @ApiResponse({
+    status: 200,
+    description:
+      'Portfolio dashboard summary with transaction count, average price and current balance',
+    type: PortfolioDashboardResponseDto,
+  })
+  @ApiResponse({ status: 404, description: 'Portfolio not found' })
+  async getPortfolioDashboard(
+    @Param('id') id: string,
+    @UserDecorator() userId: number,
+  ): Promise<PortfolioDashboardResponseDto> {
+    return await this.portfoliosService.getPortfolioDashboard(+id, userId);
   }
 
   @Patch(':id')
