@@ -651,7 +651,10 @@ export class TransactionsService {
     await this.validateAvailableBalance(sourcePortfolioId, quantity, userId);
 
     // ✅ BUSCA DE RAZÕES UNIFICADA
-    const { sendReason, receiveReason } = await this.getTransferReasons();
+    const [sendReason, receiveReason] = await this.getReasonPair(
+      TRANSACTION_REASON_NAMES.TRANSFERENCIA_ENVIADA,
+      TRANSACTION_REASON_NAMES.TRANSFERENCIA_RECEBIDA,
+    );
 
     const unitPrice = CurrencyHelper.getDefaultUnitPrice();
 
@@ -775,7 +778,10 @@ export class TransactionsService {
     await this.validateAvailableBalance(sourcePortfolioId, quantity, userId);
 
     // ✅ BUSCA UNIFICADA: Usar método auxiliar para obter razões de transferência
-    const { sendReason, receiveReason } = await this.getTransferReasons();
+    const [sendReason, receiveReason] = await this.getReasonPair(
+      TRANSACTION_REASON_NAMES.TRANSFERENCIA_ENVIADA,
+      TRANSACTION_REASON_NAMES.TRANSFERENCIA_RECEBIDA,
+    );
 
     // ✅ CRIAÇÃO UNIFICADA: Usar método auxiliar para criar transação de origem
     const savedSourceTransaction =
@@ -872,23 +878,17 @@ export class TransactionsService {
   }
 
   /**
-   * ✅ MÉTODO AUXILIAR UNIFICADO: Busca razões de transação para transferências
-   * Elimina duplicação entre createCurrencyTransfer() e createAssetTransfer()
+   * ✅ MÉTODO AUXILIAR UNIFICADO: Busca um par de razões de transação
+   * Usado diretamente por transfers e exchanges para eliminar duplicação
    */
-  private async getTransferReasons(): Promise<{
-    sendReason: TransactionReason;
-    receiveReason: TransactionReason;
-  }> {
-    const [sendReason, receiveReason] = await Promise.all([
-      this.transactionReasonsService.findByReason(
-        TRANSACTION_REASON_NAMES.TRANSFERENCIA_ENVIADA,
-      ),
-      this.transactionReasonsService.findByReason(
-        TRANSACTION_REASON_NAMES.TRANSFERENCIA_RECEBIDA,
-      ),
+  private async getReasonPair(
+    firstReasonName: string,
+    secondReasonName: string,
+  ): Promise<[TransactionReason, TransactionReason]> {
+    return await Promise.all([
+      this.transactionReasonsService.findByReason(firstReasonName),
+      this.transactionReasonsService.findByReason(secondReasonName),
     ]);
-
-    return { sendReason, receiveReason };
   }
 
   /**
@@ -1272,14 +1272,10 @@ export class TransactionsService {
 
     return await this.repository.manager.transaction(async (manager) => {
       // 🔍 BUSCAR RAZÕES DE TRANSAÇÃO
-      const [sellReason, buyReason] = await Promise.all([
-        this.transactionReasonsService.findByReason(
-          TRANSACTION_REASON_NAMES.VENDA,
-        ),
-        this.transactionReasonsService.findByReason(
-          TRANSACTION_REASON_NAMES.COMPRA,
-        ),
-      ]);
+      const [sellReason, buyReason] = await this.getReasonPair(
+        TRANSACTION_REASON_NAMES.VENDA,
+        TRANSACTION_REASON_NAMES.COMPRA,
+      );
 
       // 📉 CRIAR TRANSAÇÃO DE VENDA (SOURCE)
       const sellUnitPrice = this.calculateSellUnitPrice(
