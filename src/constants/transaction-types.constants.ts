@@ -60,6 +60,12 @@ export const TransactionReasonHelper = {
   isAnyTransfer: (transactionReasonId: number) =>
     transactionReasonId === TRANSACTION_REASON_IDS.TRANSFERENCIA_ENVIADA ||
     transactionReasonId === TRANSACTION_REASON_IDS.TRANSFERENCIA_RECEBIDA,
+  isExchange: (transactionReasonId: number) =>
+    transactionReasonId === TRANSACTION_REASON_IDS.COMPRA ||
+    transactionReasonId === TRANSACTION_REASON_IDS.VENDA,
+  isAnyLinkedTransaction: (transactionReasonId: number) =>
+    TransactionReasonHelper.isAnyTransfer(transactionReasonId) ||
+    TransactionReasonHelper.isExchange(transactionReasonId),
 } as const;
 
 export type TransactionTypeId =

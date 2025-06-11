@@ -14,6 +14,7 @@ import { TransactionsService } from './transactions.service';
 import { CreateTransactionDto } from './dto/create-transaction.dto';
 import { UpdateTransactionDto } from './dto/update-transaction.dto';
 import { CreateTransferDto } from './dto/create-transfer.dto';
+import { CreateExchangeDto } from './dto/create-exchange.dto';
 import {
   ApiOperation,
   ApiParam,
@@ -23,6 +24,7 @@ import {
 } from '@nestjs/swagger';
 import { TransactionResponseDto } from './dto/transaction-response.dto';
 import { TransferResponseDto } from './dto/transfer-response.dto';
+import { ExchangeResponseDto } from './dto/exchange-response.dto';
 import { PaginatedResponseDto } from 'src/dtos/paginated-response.dto';
 import { PaginatedTransactionResponseDto } from './dto/paginated-transaction-response.dto';
 import { UserDecorator } from 'src/decorators/user.decorator';
@@ -383,6 +385,116 @@ export class TransactionsController {
       sourceTransaction: new TransactionResponseDto(result.sourceTransaction),
       targetTransaction: new TransactionResponseDto(result.targetTransaction),
     };
+  }
+
+  @Post('exchange')
+  @ApiOperation({
+    summary: 'Exchange between different assets (buy/sell with contraparte)',
+    description: `
+      Exchanges one asset for another, creating linked buy/sell transactions.
+      
+      **🔒 CRITICAL RESTRICTION:**
+      - Both portfolios MUST be on the same platform (Binance, Coinbase, etc.)
+      - Cross-platform exchanges are NOT allowed
+      
+      **Allowed exchanges:**
+      - Currency → Crypto (BRL → BTC)
+      - Crypto → Currency (BTC → BRL)
+      - Crypto → Crypto (BTC → ETH)
+      - Currency → Stock (BRL → AAPL)
+      - Stock → Currency (AAPL → BRL)
+      
+      **Blocked exchanges:**
+      - Stock → Crypto (AAPL → BTC) ❌
+      - Stock → Stock (AAPL → GOOGL) ❌
+      - Cross-platform exchanges (Binance → Coinbase) ❌
+      
+      **How it works:**
+      - Creates SELL transaction (source asset decreases)
+      - Creates BUY transaction (target asset increases)
+      - Links both transactions for integrity
+      - Validates exchange rules and balances
+      - Maintains conservation of value principle
+      
+      **Example:** Buying 1 BTC with 50,000 BRL (both on Binance)
+      - Portfolio BRL: -50,000 BRL (SELL)
+      - Portfolio BTC: +1 BTC (BUY)
+    `,
+  })
+  @ApiResponse({
+    status: 201,
+    description: 'The exchange was completed successfully',
+    type: ExchangeResponseDto,
+  })
+  @ApiResponse({
+    status: 400,
+    description:
+      'Invalid exchange rules, insufficient balance, same asset exchange, or cross-platform exchange',
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'Portfolio not found or does not belong to the user',
+  })
+  async createExchange(
+    @Body() createExchangeDto: CreateExchangeDto,
+    @UserDecorator() userId: number,
+  ): Promise<ExchangeResponseDto> {
+    const result = await this.transactionsService.createExchange(
+      createExchangeDto,
+      userId,
+    );
+
+    return new ExchangeResponseDto({
+      sellTransaction: result.sellTransaction,
+      buyTransaction: result.buyTransaction,
+    });
+  }
+
+  @Delete('exchange/:id')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiOperation({
+    summary: 'Remove a complete exchange by transaction id (safe deletion)',
+    description: `
+      Safely removes a complete exchange by deleting both linked transactions atomically.
+      
+      **How it works:**
+      - Accepts the ID of any transaction that is part of an exchange pair
+      - Automatically finds and deletes both the sell and buy transactions
+      - Uses database transaction to ensure atomic deletion
+      - Recalculates portfolio balances after deletion
+      
+      **Safety features:**
+      - Only allows deletion of the most recent transaction in each portfolio
+      - Maintains chronological order integrity
+      - Automatically handles portfolio balance recalculation
+      
+      **Note:** This is the only safe way to delete exchange transactions.
+      Individual transaction deletion via DELETE /transactions/:id is blocked for exchanges.
+    `,
+  })
+  @ApiParam({
+    name: 'id',
+    description: 'ID of any transaction from the exchange pair (sell or buy)',
+  })
+  @ApiResponse({
+    status: 204,
+    description:
+      'Exchange has been completely removed (both transactions deleted)',
+  })
+  @ApiResponse({
+    status: 400,
+    description:
+      'Transaction is not an exchange or chronological order would be violated',
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'Transaction not found or does not belong to user',
+  })
+  async removeExchange(
+    @Param('id') id: string,
+    @UserDecorator() userId: number,
+  ): Promise<void> {
+    await this.transactionsService.removeExchange(+id, userId);
   }
 
   @Delete('transfer/:id')
