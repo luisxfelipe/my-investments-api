@@ -38,17 +38,20 @@ export class TransactionsController {
   @ApiOperation({
     summary: 'Create a new transaction',
     description: `
-      Creates a new transaction (buy, sell, deposit, withdrawal, etc.).
+      Creates a new transaction (deposits, withdrawals, etc.).
 
-      **Important:** Transfers cannot be created using this endpoint.
-      Use POST /transactions/transfer for automatic linked transfers between portfolios.
+      **Important Restrictions:**
+      - Transfers cannot be created using this endpoint
+      - Exchanges (buy/sell) cannot be created using this endpoint
+      
+      **Use specific endpoints for:**
+      - Transfers: POST /transactions/transfer
+      - Exchanges: POST /transactions/exchange
 
       **Supported transaction types:**
-      - Buy operations
-      - Sell operations
       - Deposits
       - Withdrawals
-      - Other non-transfer transactions
+      - Other non-transfer, non-exchange transactions
     `,
   })
   @ApiResponse({
@@ -59,7 +62,7 @@ export class TransactionsController {
   @ApiResponse({
     status: 400,
     description:
-      'Invalid data or attempt to create transfer transaction manually',
+      'Invalid data, attempt to create transfer/exchange manually, or insufficient balance',
   })
   @ApiResponse({
     status: 404,

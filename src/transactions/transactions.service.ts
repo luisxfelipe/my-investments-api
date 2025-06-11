@@ -76,6 +76,19 @@ export class TransactionsService {
       );
     }
 
+    // 🚫 BLOQUEAR CRIAÇÃO MANUAL DE EXCHANGES (COMPRA/VENDA)
+    if (
+      TransactionReasonHelper.isExchange(
+        createTransactionDto.transactionReasonId,
+      )
+    ) {
+      throw new BadRequestException(
+        `Exchanges (compra/venda) não podem ser criados individualmente através deste endpoint. ` +
+          `Use o endpoint POST /transactions/exchange para criar exchanges automáticos ` +
+          `entre diferentes ativos, que garante conservação de valor e validações adequadas.`,
+      );
+    }
+
     // ✅ VALIDAÇÃO DE SALDO UNIFICADA: Se é SAÍDA → verificar saldo, Se é ENTRADA → permitir sempre
     if (TransactionTypeHelper.isSaida(transactionReason.transactionTypeId)) {
       await this.validateAvailableBalance(
