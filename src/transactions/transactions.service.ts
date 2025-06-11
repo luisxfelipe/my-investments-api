@@ -8,6 +8,7 @@ import {
 import { CreateTransactionDto } from './dto/create-transaction.dto';
 import { UpdateTransactionDto } from './dto/update-transaction.dto';
 import { CreateTransferDto } from './dto/create-transfer.dto';
+import { CreateExchangeDto } from './dto/create-exchange.dto';
 import { Repository } from 'typeorm';
 import { TransactionReasonsService } from 'src/transaction-reasons/transaction-reasons.service';
 import { TransactionTypesService } from 'src/transaction-types/transaction-types.service';
@@ -72,6 +73,19 @@ export class TransactionsService {
         `Transferências não podem ser criadas individualmente através deste endpoint. ` +
           `Use o endpoint POST /transactions/transfer para criar transferências automáticas ` +
           `entre portfólios, que garante consistência e vinculação adequada das transações.`,
+      );
+    }
+
+    // 🚫 BLOQUEAR CRIAÇÃO MANUAL DE EXCHANGES (COMPRA/VENDA)
+    if (
+      TransactionReasonHelper.isExchange(
+        createTransactionDto.transactionReasonId,
+      )
+    ) {
+      throw new BadRequestException(
+        `Exchanges (compra/venda) não podem ser criados individualmente através deste endpoint. ` +
+          `Use o endpoint POST /transactions/exchange para criar exchanges automáticos ` +
+          `entre diferentes ativos, que garante conservação de valor e validações adequadas.`,
       );
     }
 
@@ -637,7 +651,10 @@ export class TransactionsService {
     await this.validateAvailableBalance(sourcePortfolioId, quantity, userId);
 
     // ✅ BUSCA DE RAZÕES UNIFICADA
-    const { sendReason, receiveReason } = await this.getTransferReasons();
+    const [sendReason, receiveReason] = await this.getReasonPair(
+      TRANSACTION_REASON_NAMES.TRANSFERENCIA_ENVIADA,
+      TRANSACTION_REASON_NAMES.TRANSFERENCIA_RECEBIDA,
+    );
 
     const unitPrice = CurrencyHelper.getDefaultUnitPrice();
 
@@ -761,7 +778,10 @@ export class TransactionsService {
     await this.validateAvailableBalance(sourcePortfolioId, quantity, userId);
 
     // ✅ BUSCA UNIFICADA: Usar método auxiliar para obter razões de transferência
-    const { sendReason, receiveReason } = await this.getTransferReasons();
+    const [sendReason, receiveReason] = await this.getReasonPair(
+      TRANSACTION_REASON_NAMES.TRANSFERENCIA_ENVIADA,
+      TRANSACTION_REASON_NAMES.TRANSFERENCIA_RECEBIDA,
+    );
 
     // ✅ CRIAÇÃO UNIFICADA: Usar método auxiliar para criar transação de origem
     const savedSourceTransaction =
@@ -858,23 +878,17 @@ export class TransactionsService {
   }
 
   /**
-   * ✅ MÉTODO AUXILIAR UNIFICADO: Busca razões de transação para transferências
-   * Elimina duplicação entre createCurrencyTransfer() e createAssetTransfer()
+   * ✅ MÉTODO AUXILIAR UNIFICADO: Busca um par de razões de transação
+   * Usado diretamente por transfers e exchanges para eliminar duplicação
    */
-  private async getTransferReasons(): Promise<{
-    sendReason: TransactionReason;
-    receiveReason: TransactionReason;
-  }> {
-    const [sendReason, receiveReason] = await Promise.all([
-      this.transactionReasonsService.findByReason(
-        TRANSACTION_REASON_NAMES.TRANSFERENCIA_ENVIADA,
-      ),
-      this.transactionReasonsService.findByReason(
-        TRANSACTION_REASON_NAMES.TRANSFERENCIA_RECEBIDA,
-      ),
+  private async getReasonPair(
+    firstReasonName: string,
+    secondReasonName: string,
+  ): Promise<[TransactionReason, TransactionReason]> {
+    return await Promise.all([
+      this.transactionReasonsService.findByReason(firstReasonName),
+      this.transactionReasonsService.findByReason(secondReasonName),
     ]);
-
-    return { sendReason, receiveReason };
   }
 
   /**
@@ -1184,5 +1198,344 @@ export class TransactionsService {
     }
 
     return { newBalance, newAvgPrice };
+  }
+
+  // =====================================================
+  // 💱 MÉTODOS DE EXCHANGE (CONVERSÃO ENTRE ATIVOS)
+  // =====================================================
+
+  /**
+   * Cria exchange entre diferentes ativos
+   */
+  async createExchange(
+    createExchangeDto: CreateExchangeDto,
+    userId: number,
+  ): Promise<{
+    sellTransaction: Transaction;
+    buyTransaction: Transaction;
+  }> {
+    const {
+      sourcePortfolioId,
+      targetPortfolioId,
+      sourceQuantity,
+      targetQuantity,
+      exchangeRate,
+      transactionDate,
+      fee = 0,
+      notes,
+    } = createExchangeDto;
+
+    // 🔍 VALIDAÇÕES INICIAIS
+    const sourcePortfolio = await this.portfoliosService.findOne(
+      sourcePortfolioId,
+      userId,
+    );
+    const targetPortfolio = await this.portfoliosService.findOne(
+      targetPortfolioId,
+      userId,
+    );
+
+    // ❌ VALIDAR SE NÃO SÃO DO MESMO ATIVO
+    if (sourcePortfolio.assetId === targetPortfolio.assetId) {
+      throw new BadRequestException(
+        `Cannot exchange same asset. Use POST /transactions/transfer for same-asset transfers.`,
+      );
+    }
+
+    // ✅ VALIDAR REGRAS DE EXCHANGE
+    this.validateExchangeRules(sourcePortfolio, targetPortfolio);
+
+    // 🔒 VALIDAR MESMA PLATAFORMA (CRÍTICO)
+    this.validateSamePlatform(sourcePortfolio, targetPortfolio);
+
+    // ✅ VALIDAR SALDO DISPONÍVEL
+    await this.validateAvailableBalance(
+      sourcePortfolioId,
+      sourceQuantity,
+      userId,
+    );
+
+    // ✅ VALIDAR TAXA DE CÂMBIO
+    this.validateExchangeRate(sourceQuantity, targetQuantity, exchangeRate);
+
+    // ✅ VALIDAR DATA
+    await this.validateTransactionCommon(
+      sourcePortfolioId,
+      transactionDate,
+      userId,
+    );
+    await this.validateTransactionCommon(
+      targetPortfolioId,
+      transactionDate,
+      userId,
+    );
+
+    return await this.repository.manager.transaction(async (manager) => {
+      // 🔍 BUSCAR RAZÕES DE TRANSAÇÃO
+      const [sellReason, buyReason] = await this.getReasonPair(
+        TRANSACTION_REASON_NAMES.VENDA,
+        TRANSACTION_REASON_NAMES.COMPRA,
+      );
+
+      // 📉 CRIAR TRANSAÇÃO DE VENDA (SOURCE)
+      const sellUnitPrice = this.calculateSellUnitPrice(
+        sourcePortfolio,
+        sourceQuantity,
+        targetQuantity,
+      );
+
+      const sellTransaction = await this.createTransactionWithCalculatedValues(
+        sourcePortfolioId,
+        sellReason.transactionTypeId,
+        sellReason.id,
+        sourceQuantity,
+        sellUnitPrice,
+        transactionDate,
+        fee,
+        notes
+          ? `${notes} - Exchange to ${targetPortfolio.asset.name}`
+          : `Exchange to ${targetPortfolio.asset.name}`,
+      );
+
+      // 📈 CRIAR TRANSAÇÃO DE COMPRA (TARGET)
+      const buyUnitPrice = this.calculateBuyUnitPrice(
+        targetPortfolio,
+        sourceQuantity,
+        targetQuantity,
+      );
+
+      const buyTransaction = await this.createTransactionWithCalculatedValues(
+        targetPortfolioId,
+        buyReason.transactionTypeId,
+        buyReason.id,
+        targetQuantity,
+        buyUnitPrice,
+        transactionDate,
+        0, // Fee aplicada apenas na venda
+        notes
+          ? `${notes} - Exchange from ${sourcePortfolio.asset.name}`
+          : `Exchange from ${sourcePortfolio.asset.name}`,
+        sellTransaction.id, // linkedTransactionId
+      );
+
+      // 🔗 VINCULAR TRANSAÇÕES
+      sellTransaction.linkedTransactionId = buyTransaction.id;
+      await manager.save(sellTransaction);
+
+      console.log(
+        `💱 Exchange completed: ${sourceQuantity} ${sourcePortfolio.asset.code} → ${targetQuantity} ${targetPortfolio.asset.code}`,
+      );
+
+      return {
+        sellTransaction,
+        buyTransaction,
+      };
+    });
+  }
+
+  /**
+   * Remove exchange completo (ambas transações vinculadas)
+   */
+  async removeExchange(id: number, userId: number): Promise<void> {
+    // Verifica se a transação existe e pertence ao usuário
+    const transaction = await this.findOne(id, userId);
+
+    // ❌ VERIFICAR SE É EXCHANGE
+    const isExchange = TransactionReasonHelper.isExchange(
+      transaction.transactionReasonId,
+    );
+
+    if (!isExchange) {
+      throw new BadRequestException(
+        `Transaction ${id} is not an exchange transaction. ` +
+          `Only exchange transactions can be deleted via this endpoint.`,
+      );
+    }
+
+    // 🔍 BUSCAR TRANSAÇÃO VINCULADA
+    if (!transaction.linkedTransactionId) {
+      throw new BadRequestException(
+        `Exchange transaction ${id} does not have a linked transaction. Data integrity issue.`,
+      );
+    }
+
+    const linkedTransaction = await this.findOne(
+      transaction.linkedTransactionId,
+      userId,
+    );
+
+    return await this.repository.manager.transaction(async (manager) => {
+      // ✅ VALIDAR ORDEM CRONOLÓGICA PARA AMBAS
+      await this.validateIsLastTransaction(id, transaction.portfolioId);
+      await this.validateIsLastTransaction(
+        linkedTransaction.id,
+        linkedTransaction.portfolioId,
+      );
+
+      const portfolioIds = [
+        transaction.portfolioId,
+        linkedTransaction.portfolioId,
+      ];
+
+      // 🗑️ DELETAR AMBAS TRANSAÇÕES
+      await manager.softDelete(Transaction, id);
+      await manager.softDelete(Transaction, linkedTransaction.id);
+
+      console.log(
+        `💱 Exchange deleted: transactions ${id} and ${linkedTransaction.id}`,
+      );
+
+      // ♻️ RECALCULAR SALDOS DOS PORTFOLIOS AFETADOS
+      for (const portfolioId of portfolioIds) {
+        await this.recalculateTransactionBalances(portfolioId);
+      }
+    });
+  }
+
+  /**
+   * Valida regras de exchange entre tipos de ativos
+   */
+  private validateExchangeRules(
+    sourcePortfolio: any,
+    targetPortfolio: any,
+  ): void {
+    const sourceType = String(
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+      sourcePortfolio?.asset?.assetType?.name || '',
+    ).toUpperCase();
+    const targetType = String(
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+      targetPortfolio?.asset?.assetType?.name || '',
+    ).toUpperCase();
+
+    // 📋 REGRAS PERMITIDAS
+    const allowedExchanges = [
+      ['CURRENCY', 'CRYPTOCURRENCY'],
+      ['CRYPTOCURRENCY', 'CURRENCY'],
+      ['CRYPTOCURRENCY', 'CRYPTOCURRENCY'],
+      ['CURRENCY', 'STOCK'],
+      ['STOCK', 'CURRENCY'],
+      ['CURRENCY', 'COMMODITY'],
+      ['COMMODITY', 'CURRENCY'],
+    ];
+
+    const isAllowed = allowedExchanges.some(
+      ([from, to]) =>
+        (sourceType === from && targetType === to) ||
+        (sourceType === to && targetType === from),
+    );
+
+    if (!isAllowed) {
+      throw new BadRequestException(
+        `Exchange not allowed: ${sourceType} → ${targetType}. ` +
+          `Allowed exchanges: Currency↔Crypto, Currency↔Stock, Currency↔Commodity, Crypto↔Crypto. ` +
+          `Blocked: Stock↔Crypto, Stock↔Stock, Stock↔Commodity, Crypto↔Commodity`,
+      );
+    }
+  }
+
+  /**
+   * 🔒 VALIDAÇÃO CRÍTICA: Valida se ambos portfolios pertencem à mesma plataforma
+   * Esta validação garante que exchanges só ocorram dentro da mesma plataforma (Binance, Coinbase, etc.)
+   */
+  private validateSamePlatform(
+    sourcePortfolio: any,
+    targetPortfolio: any,
+  ): void {
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+    const sourcePlatformId = sourcePortfolio?.platformId as number;
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+    const targetPlatformId = targetPortfolio?.platformId as number;
+
+    if (!sourcePlatformId || !targetPlatformId) {
+      throw new BadRequestException(
+        'Cannot validate platform: One or both portfolios have missing platform information',
+      );
+    }
+
+    if (sourcePlatformId !== targetPlatformId) {
+      const sourcePlatformName =
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+        (sourcePortfolio?.platform?.name as string) ||
+        `Platform ID ${sourcePlatformId}`;
+      const targetPlatformName =
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+        (targetPortfolio?.platform?.name as string) ||
+        `Platform ID ${targetPlatformId}`;
+
+      throw new BadRequestException(
+        `Cross-platform exchanges are not allowed. ` +
+          `Source portfolio is on "${sourcePlatformName}" but target portfolio is on "${targetPlatformName}". ` +
+          `Exchanges can only occur between assets within the same platform.`,
+      );
+    }
+  }
+
+  /**
+   * Valida se a taxa de câmbio está consistente
+   */
+  private validateExchangeRate(
+    sourceQuantity: number,
+    targetQuantity: number,
+    exchangeRate: number,
+  ): void {
+    const calculatedTargetQuantity = sourceQuantity * exchangeRate;
+    const tolerance = 0.001; // 0.1% de tolerância
+
+    if (Math.abs(calculatedTargetQuantity - targetQuantity) > tolerance) {
+      throw new BadRequestException(
+        `Exchange rate inconsistency. ` +
+          `Expected target quantity: ${calculatedTargetQuantity.toFixed(6)}, ` +
+          `but received: ${targetQuantity}. ` +
+          `Exchange rate: ${exchangeRate} (${sourceQuantity} × ${exchangeRate} = ${calculatedTargetQuantity})`,
+      );
+    }
+  }
+
+  /**
+   * Calcula preço unitário para transação de venda no exchange
+   */
+  private calculateSellUnitPrice(
+    sourcePortfolio: any,
+    sourceQuantity: number,
+    targetQuantity: number,
+  ): number {
+    // Para venda: preço unitário baseado no valor atual em moeda base
+    // Se vendendo cripto por moeda: usar taxa de câmbio
+    // Se vendendo moeda por cripto: preço = 1 (valor nominal)
+
+    const sourceType = String(
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+      sourcePortfolio?.asset?.assetType?.name || '',
+    ).toUpperCase();
+
+    if (sourceType === 'CURRENCY') {
+      return 1; // Moedas têm valor nominal unitário
+    }
+
+    // Para criptos e outros ativos: usar valor baseado na conversão
+    return targetQuantity / sourceQuantity;
+  }
+
+  /**
+   * Calcula preço unitário para transação de compra no exchange
+   */
+  private calculateBuyUnitPrice(
+    targetPortfolio: any,
+    sourceQuantity: number,
+    targetQuantity: number,
+  ): number {
+    // Para compra: preço unitário baseado no que foi pago
+    const targetType = String(
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+      targetPortfolio?.asset?.assetType?.name || '',
+    ).toUpperCase();
+
+    if (targetType === 'CURRENCY') {
+      return 1; // Moedas têm valor nominal unitário
+    }
+
+    // Para criptos e outros ativos: usar valor baseado na conversão
+    return sourceQuantity / targetQuantity;
   }
 }
