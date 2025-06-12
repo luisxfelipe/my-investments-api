@@ -376,15 +376,27 @@ export class PortfoliosService {
       return new PortfolioDashboardResponseDto(portfolio, 0, 0, 0);
     }
 
-    // Calcular métricas usando o serviço de cálculos financeiros
-    const positionMetrics =
-      this.financialCalculationsService.calculatePositionMetrics(transactions);
+    // ✅ CORREÇÃO: Usar valores já calculados da última transação em vez de recalcular
+    const activeTransactions = transactions.filter((t) => !t.deletedAt);
+
+    // Encontrar a última transação (por data e ID como desempate)
+    const lastTransaction = activeTransactions
+      .sort((a, b) => {
+        const dateCompare =
+          a.transactionDate.getTime() - b.transactionDate.getTime();
+        return dateCompare !== 0 ? dateCompare : a.id - b.id;
+      })
+      .pop();
+
+    // Usar valores já calculados e salvos no banco de dados
+    const currentBalance = lastTransaction?.currentBalance || 0;
+    const averagePrice = lastTransaction?.averagePrice || 0;
 
     return new PortfolioDashboardResponseDto(
       portfolio,
-      transactions.length, // transactionCount
-      positionMetrics.averagePrice, // averagePrice
-      positionMetrics.quantity, // currentBalance
+      activeTransactions.length, // transactionCount (apenas transações ativas)
+      averagePrice, // ✅ Usar valor do banco de dados
+      currentBalance, // ✅ Usar valor do banco de dados
     );
   }
 }
