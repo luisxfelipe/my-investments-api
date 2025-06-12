@@ -1216,7 +1216,12 @@ export class TransactionsService {
             : 0;
       } else {
         // Mantém preço médio para outros tipos de entrada (depósitos, transferências recebidas)
-        newAvgPrice = currentBalance > 0 ? currentAvgPrice : 0;
+        // ✅ CORREÇÃO: Para portfolio vazio, usar o unitPrice da transação atual
+        if (currentBalance > 0) {
+          newAvgPrice = currentAvgPrice; // Portfolio com histórico: manter preço médio
+        } else {
+          newAvgPrice = unitPrice; // Portfolio vazio: usar unitPrice da primeira transação
+        }
       }
     } else {
       // Saída (venda, retirada, etc)
