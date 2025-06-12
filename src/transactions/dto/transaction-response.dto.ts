@@ -3,6 +3,7 @@ import { PortfolioResponseDto } from 'src/portfolios/dto/portfolio-response.dto'
 import { TransactionTypeResponseDto } from 'src/transaction-types/dto/transaction-type-response.dto';
 import { TransactionReasonResponseDto } from 'src/transaction-reasons/dto/transaction-reason-response.dto';
 import { Transaction } from '../entities/transaction.entity';
+import { FeeType } from '../../constants/fee-types.constants';
 
 export class TransactionResponseDto {
   @ApiProperty({ description: 'Transaction ID' })
@@ -31,6 +32,14 @@ export class TransactionResponseDto {
 
   @ApiProperty({ description: 'Fee', required: false })
   fee?: number;
+
+  @ApiProperty({
+    description:
+      'Fee type (percentage_target, percentage_source, fixed_source, fixed_target)',
+    enum: FeeType,
+    required: false,
+  })
+  feeType?: FeeType;
 
   @ApiProperty({ description: 'Notes', required: false })
   notes?: string;
@@ -66,6 +75,7 @@ export class TransactionResponseDto {
     this.totalValue = Number(transaction.totalValue);
     this.transactionDate = transaction.transactionDate;
     this.fee = transaction.fee ? Number(transaction.fee) : transaction.fee;
+    this.feeType = transaction.feeType;
     this.notes = transaction.notes;
     this.linkedTransactionId = transaction.linkedTransactionId;
 

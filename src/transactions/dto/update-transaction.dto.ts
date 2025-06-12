@@ -6,8 +6,11 @@ import {
   IsOptional,
   IsPositive,
   IsString,
+  IsEnum,
   Min,
 } from 'class-validator';
+import { FeeType } from '../../constants/fee-types.constants';
+import { IsFeeConsistent } from '../../decorators/fee-validation.decorator';
 
 export class UpdateTransactionDto {
   @ApiProperty({ description: 'Quantity of the asset', required: false })
@@ -32,7 +35,18 @@ export class UpdateTransactionDto {
   @IsOptional()
   @IsNumber({}, { message: 'Fee must be a number' })
   @Min(0, { message: 'Fee must be zero or a positive number' })
+  @IsFeeConsistent()
   fee?: number;
+
+  @ApiProperty({
+    description: 'Fee type (required if fee is provided)',
+    enum: FeeType,
+    required: false,
+    example: FeeType.PERCENTAGE_TARGET,
+  })
+  @IsOptional()
+  @IsEnum(FeeType, { message: 'Fee type must be a valid fee type' })
+  feeType?: FeeType;
 
   @ApiProperty({
     description: 'Additional notes about the transaction',

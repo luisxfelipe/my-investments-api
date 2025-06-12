@@ -8,9 +8,12 @@ import {
   IsOptional,
   IsPositive,
   IsString,
+  IsEnum,
   Min,
 } from 'class-validator';
 import { DecimalPrecision } from '../../decorators/decimal-precision.decorator';
+import { FeeType } from '../../constants/fee-types.constants';
+import { IsFeeConsistent } from '../../decorators/fee-validation.decorator';
 
 export class CreateTransactionDto {
   @ApiProperty({ description: 'Portfolio ID' })
@@ -62,7 +65,18 @@ export class CreateTransactionDto {
   @DecimalPrecision(8, {
     message: 'Fee cannot have more than 8 decimal places',
   })
+  @IsFeeConsistent()
   fee?: number;
+
+  @ApiProperty({
+    description: 'Fee type (required if fee is provided)',
+    enum: FeeType,
+    required: false,
+    example: FeeType.PERCENTAGE_TARGET,
+  })
+  @IsOptional()
+  @IsEnum(FeeType, { message: 'Fee type must be a valid fee type' })
+  feeType?: FeeType;
 
   @ApiProperty({
     description: 'Additional notes about the transaction',

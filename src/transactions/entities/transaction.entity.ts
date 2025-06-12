@@ -2,6 +2,7 @@ import { ApiProperty } from '@nestjs/swagger';
 import { Portfolio } from 'src/portfolios/entities/portfolio.entity';
 import { TransactionReason } from 'src/transaction-reasons/entities/transaction-reason.entity';
 import { TransactionType } from 'src/transaction-types/entities/transaction-type.entity';
+import { FeeType } from 'src/constants/fee-types.constants';
 import {
   Column,
   CreateDateColumn,
@@ -56,6 +57,14 @@ export class Transaction {
     nullable: true,
   })
   fee?: number;
+
+  @ApiProperty({
+    description: 'Fee type (how the fee was calculated)',
+    required: false,
+    enum: FeeType,
+  })
+  @Column({ name: 'fee_type', type: 'varchar', length: 50, nullable: true })
+  feeType?: FeeType;
 
   @ApiProperty({ description: 'Notes', required: false })
   @Column({ name: 'notes', type: 'text', nullable: true })

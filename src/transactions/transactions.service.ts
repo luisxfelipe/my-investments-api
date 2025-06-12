@@ -10,6 +10,7 @@ import { UpdateTransactionDto } from './dto/update-transaction.dto';
 import { CreateTransferDto } from './dto/create-transfer.dto';
 import { CreateExchangeDto } from './dto/create-exchange.dto';
 import { Repository } from 'typeorm';
+import { FeeType } from '../constants/fee-types.constants';
 import { TransactionReasonsService } from 'src/transaction-reasons/transaction-reasons.service';
 import { TransactionTypesService } from 'src/transaction-types/transaction-types.service';
 import { PortfoliosService } from 'src/portfolios/portfolios.service';
@@ -107,6 +108,8 @@ export class TransactionsService {
       createTransactionDto.transactionDate,
       createTransactionDto.fee || 0,
       createTransactionDto.notes,
+      undefined, // linkedTransactionId
+      createTransactionDto.feeType, // novo campo feeType
     );
 
     return savedTransaction;
@@ -664,6 +667,7 @@ export class TransactionsService {
       quantity,
       transactionDate,
       fee = 0,
+      feeType,
       notes,
     } = createTransferDto;
 
@@ -702,6 +706,8 @@ export class TransactionsService {
       notes
         ? `${notes} - Transfer to portfolio #${targetPortfolioId}`
         : `Transfer to portfolio #${targetPortfolioId}`,
+      undefined, // linkedTransactionId será definido depois
+      feeType, // novo campo feeType
     );
 
     // ✅ CRIAR TRANSAÇÃO DE DESTINO COM MÉTODO UNIFICADO
@@ -749,6 +755,7 @@ export class TransactionsService {
       quantity,
       transactionDate,
       fee = 0,
+      feeType,
       notes,
     } = createTransferDto;
 
@@ -828,6 +835,8 @@ export class TransactionsService {
         notes
           ? `${notes} - Transfer to portfolio #${targetPortfolioId}`
           : `Transfer to portfolio #${targetPortfolioId}`,
+        undefined, // linkedTransactionId será definido depois
+        feeType, // novo campo feeType
       );
 
     // ✅ CRIAÇÃO UNIFICADA: Usar método auxiliar para criar transação de destino
@@ -937,6 +946,7 @@ export class TransactionsService {
     fee: number = 0,
     notes?: string,
     linkedTransactionId?: number,
+    feeType?: FeeType,
   ): Promise<Transaction> {
     // ✅ CÁLCULOS UNIFICADOS
     const calculatedValues = await this.calculateTransactionValues(
@@ -957,6 +967,7 @@ export class TransactionsService {
       unitPrice,
       transactionDate,
       fee,
+      feeType,
       notes,
       linkedTransactionId,
       ...calculatedValues, // totalValue, currentBalance, averagePrice
@@ -1242,7 +1253,7 @@ export class TransactionsService {
   // =====================================================
 
   /**
-   * Cria exchange entre diferentes ativos
+   * Cria exchange entre diferentes ativos usando valores reais
    */
   async createExchange(
     createExchangeDto: CreateExchangeDto,
@@ -1254,11 +1265,11 @@ export class TransactionsService {
     const {
       sourcePortfolioId,
       targetPortfolioId,
-      sourceQuantity,
-      targetQuantity,
-      exchangeRate,
+      sourceAmountSpent,
+      targetAmountReceived,
       transactionDate,
-      fee = 0,
+      feeAmount,
+      feeType,
       notes,
     } = createExchangeDto;
 
@@ -1285,15 +1296,12 @@ export class TransactionsService {
     // 🔒 VALIDAR MESMA PLATAFORMA (CRÍTICO)
     this.validateSamePlatform(sourcePortfolio, targetPortfolio);
 
-    // ✅ VALIDAR SALDO DISPONÍVEL
+    // ✅ VALIDAR SALDO DISPONÍVEL (usando sourceAmountSpent em vez de quantity)
     await this.validateAvailableBalance(
       sourcePortfolioId,
-      sourceQuantity,
+      sourceAmountSpent,
       userId,
     );
-
-    // ✅ VALIDAR TAXA DE CÂMBIO
-    this.validateExchangeRate(sourceQuantity, targetQuantity, exchangeRate);
 
     // ✅ VALIDAR DATA
     await this.validateTransactionCommon(
@@ -1307,6 +1315,10 @@ export class TransactionsService {
       userId,
     );
 
+    console.log(
+      `💱 Exchange: ${sourceAmountSpent} ${sourcePortfolio.asset.code} → ${targetAmountReceived} ${targetPortfolio.asset.code} (fee: ${feeAmount || 0})`,
+    );
+
     return await this.repository.manager.transaction(async (manager) => {
       // 🔍 BUSCAR RAZÕES DE TRANSAÇÃO
       const [sellReason, buyReason] = await this.getReasonPair(
@@ -1314,38 +1326,32 @@ export class TransactionsService {
         TRANSACTION_REASON_NAMES.COMPRA,
       );
 
-      // 📉 CRIAR TRANSAÇÃO DE VENDA (SOURCE)
-      const sellUnitPrice = this.calculateSellUnitPrice(
-        sourcePortfolio,
-        sourceQuantity,
-        targetQuantity,
-      );
+      // 📉 CRIAR TRANSAÇÃO DE VENDA (SOURCE) - usando valores reais
+      const sellUnitPrice = 1; // Preço unitário simplificado para valor real
 
       const sellTransaction = await this.createTransactionWithCalculatedValues(
         sourcePortfolioId,
         sellReason.transactionTypeId,
         sellReason.id,
-        sourceQuantity,
+        sourceAmountSpent, // quantidade = valor gasto
         sellUnitPrice,
         transactionDate,
-        fee,
+        feeAmount || 0,
         notes
           ? `${notes} - Exchange to ${targetPortfolio.asset.name}`
           : `Exchange to ${targetPortfolio.asset.name}`,
+        undefined, // linkedTransactionId será definido depois
+        feeType, // novo campo feeType
       );
 
-      // 📈 CRIAR TRANSAÇÃO DE COMPRA (TARGET)
-      const buyUnitPrice = this.calculateBuyUnitPrice(
-        targetPortfolio,
-        sourceQuantity,
-        targetQuantity,
-      );
+      // 📈 CRIAR TRANSAÇÃO DE COMPRA (TARGET) - usando valores reais
+      const buyUnitPrice = 1; // Preço unitário simplificado para valor real
 
       const buyTransaction = await this.createTransactionWithCalculatedValues(
         targetPortfolioId,
         buyReason.transactionTypeId,
         buyReason.id,
-        targetQuantity,
+        targetAmountReceived, // quantidade = valor recebido
         buyUnitPrice,
         transactionDate,
         0, // Fee aplicada apenas na venda
@@ -1360,7 +1366,7 @@ export class TransactionsService {
       await manager.save(sellTransaction);
 
       console.log(
-        `💱 Exchange completed: ${sourceQuantity} ${sourcePortfolio.asset.code} → ${targetQuantity} ${targetPortfolio.asset.code}`,
+        `💱 Exchange completed: ${sourceAmountSpent} ${sourcePortfolio.asset.code} → ${targetAmountReceived} ${targetPortfolio.asset.code}`,
       );
 
       return {
@@ -1509,27 +1515,6 @@ export class TransactionsService {
   }
 
   /**
-   * Valida se a taxa de câmbio está consistente
-   */
-  private validateExchangeRate(
-    sourceQuantity: number,
-    targetQuantity: number,
-    exchangeRate: number,
-  ): void {
-    const calculatedTargetQuantity = sourceQuantity * exchangeRate;
-    const tolerance = 0.001; // 0.1% de tolerância
-
-    if (Math.abs(calculatedTargetQuantity - targetQuantity) > tolerance) {
-      throw new BadRequestException(
-        `Exchange rate inconsistency. ` +
-          `Expected target quantity: ${calculatedTargetQuantity.toFixed(6)}, ` +
-          `but received: ${targetQuantity}. ` +
-          `Exchange rate: ${exchangeRate} (${sourceQuantity} × ${exchangeRate} = ${calculatedTargetQuantity})`,
-      );
-    }
-  }
-
-  /**
    * Calcula preço unitário para transação de venda no exchange
    */
   private calculateSellUnitPrice(
@@ -1574,5 +1559,67 @@ export class TransactionsService {
 
     // Para criptos e outros ativos: usar valor baseado na conversão
     return sourceQuantity / targetQuantity;
+  }
+
+  /**
+   * Calcula automaticamente a quantidade de destino baseada nos tipos de ativos
+   */
+  private calculateTargetQuantity(
+    sourcePortfolio: any,
+    targetPortfolio: any,
+    sourceQuantity: number,
+    fee: number,
+  ): number {
+    const sourceType = String(
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+      sourcePortfolio?.asset?.assetType?.name || '',
+    ).toUpperCase();
+    const targetType = String(
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+      targetPortfolio?.asset?.assetType?.name || '',
+    ).toUpperCase();
+
+    const effectiveQuantity = sourceQuantity - fee;
+
+    // 🏦 CURRENCY → CRYPTOCURRENCY (ex: BRL → BTC)
+    if (sourceType === 'CURRENCY' && targetType === 'CRYPTOCURRENCY') {
+      // TODO: Buscar cotação real da API
+      // Por enquanto, usar taxa fictícia: 1 BRL = 0.00002 BTC
+      return effectiveQuantity * 0.00002;
+    }
+
+    // 💰 CRYPTOCURRENCY → CURRENCY (ex: BTC → BRL)
+    if (sourceType === 'CRYPTOCURRENCY' && targetType === 'CURRENCY') {
+      // TODO: Buscar cotação real da API
+      // Por enquanto, usar taxa fictícia: 1 BTC = 50000 BRL
+      return effectiveQuantity * 50000;
+    }
+
+    // 🔄 CRYPTOCURRENCY → CRYPTOCURRENCY (ex: BTC → ETH)
+    if (sourceType === 'CRYPTOCURRENCY' && targetType === 'CRYPTOCURRENCY') {
+      // TODO: Buscar cotações reais via API
+      // Por enquanto, usar taxa fictícia baseada em proporção
+      return effectiveQuantity * 15; // Ex: 1 BTC = 15 ETH
+    }
+
+    // 📈 CURRENCY → STOCK (ex: BRL → AAPL)
+    if (sourceType === 'CURRENCY' && targetType === 'STOCK') {
+      // TODO: Buscar cotação real da API
+      // Por enquanto, usar taxa fictícia: 1 BRL = 0.005 AAPL
+      return effectiveQuantity * 0.005;
+    }
+
+    // 📉 STOCK → CURRENCY (ex: AAPL → BRL)
+    if (sourceType === 'STOCK' && targetType === 'CURRENCY') {
+      // TODO: Buscar cotação real da API
+      // Por enquanto, usar taxa fictícia: 1 AAPL = 200 BRL
+      return effectiveQuantity * 200;
+    }
+
+    // ⚠️ FALLBACK: Taxa 1:1 para casos não mapeados
+    console.warn(
+      `⚠️ Exchange rate not defined for ${sourceType} → ${targetType}. Using 1:1 ratio.`,
+    );
+    return effectiveQuantity;
   }
 }

@@ -6,8 +6,11 @@ import {
   IsOptional,
   IsPositive,
   IsString,
+  IsEnum,
   Min,
 } from 'class-validator';
+import { FeeType } from '../../constants/fee-types.constants';
+import { IsFeeConsistent } from '../../decorators/fee-validation.decorator';
 
 export class CreateExchangeDto {
   @ApiProperty({
@@ -27,29 +30,22 @@ export class CreateExchangeDto {
   targetPortfolioId: number;
 
   @ApiProperty({
-    description: 'Quantity of source asset to sell',
-    example: 50000,
+    description:
+      'Total amount deducted from source portfolio (what you actually paid)',
+    example: 50020,
   })
-  @IsNumber({}, { message: 'Source quantity must be a number' })
-  @IsPositive({ message: 'Source quantity must be positive' })
-  sourceQuantity: number;
+  @IsNumber({}, { message: 'Source amount spent must be a number' })
+  @IsPositive({ message: 'Source amount spent must be positive' })
+  sourceAmountSpent: number;
 
   @ApiProperty({
-    description: 'Quantity of target asset to buy',
-    example: 1,
+    description:
+      'Actual amount received in target portfolio (what you actually got)',
+    example: 0.999,
   })
-  @IsNumber({}, { message: 'Target quantity must be a number' })
-  @IsPositive({ message: 'Target quantity must be positive' })
-  targetQuantity: number;
-
-  @ApiProperty({
-    description: 'Exchange rate (target units per source unit)',
-    example: 0.00002,
-    type: 'number',
-  })
-  @IsNumber({}, { message: 'Exchange rate must be a number' })
-  @IsPositive({ message: 'Exchange rate must be positive' })
-  exchangeRate: number;
+  @IsNumber({}, { message: 'Target amount received must be a number' })
+  @IsPositive({ message: 'Target amount received must be positive' })
+  targetAmountReceived: number;
 
   @ApiProperty({
     description: 'Transaction date',
@@ -61,14 +57,25 @@ export class CreateExchangeDto {
   transactionDate: Date;
 
   @ApiProperty({
-    description: 'Exchange fee (applied to sell transaction)',
+    description: 'Fee amount (required if feeType is provided)',
     required: false,
-    example: 10.5,
+    example: 0.1,
   })
   @IsOptional()
-  @IsNumber({}, { message: 'Fee must be a number' })
-  @Min(0, { message: 'Fee must be zero or positive' })
-  fee?: number;
+  @IsNumber({}, { message: 'Fee amount must be a number' })
+  @Min(0, { message: 'Fee amount must be zero or positive' })
+  @IsFeeConsistent()
+  feeAmount?: number;
+
+  @ApiProperty({
+    description: 'Fee type (required if feeAmount is provided)',
+    enum: FeeType,
+    required: false,
+    example: FeeType.PERCENTAGE_TARGET,
+  })
+  @IsOptional()
+  @IsEnum(FeeType, { message: 'Fee type must be a valid fee type' })
+  feeType?: FeeType;
 
   @ApiProperty({
     description: 'Additional notes about the exchange',

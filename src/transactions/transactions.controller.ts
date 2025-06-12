@@ -396,9 +396,10 @@ export class TransactionsController {
 
   @Post('exchange')
   @ApiOperation({
-    summary: 'Exchange between different assets (buy/sell with contraparte)',
+    summary:
+      'Exchange between different assets using real values (simplified approach)',
     description: `
-      Exchanges one asset for another, creating linked buy/sell transactions.
+      Exchanges one asset for another using the actual amounts paid and received.
       
       **🔒 CRITICAL RESTRICTION:**
       - Both portfolios MUST be on the same platform (Binance, Coinbase, etc.)
@@ -416,16 +417,30 @@ export class TransactionsController {
       - Stock → Stock (AAPL → GOOGL) ❌
       - Cross-platform exchanges (Binance → Coinbase) ❌
       
+      **New Simplified API (Real Values):**
+      - sourceAmountSpent: Total amount deducted from source portfolio (what you actually paid)
+      - targetAmountReceived: Actual amount received in target portfolio (what you actually got)
+      - feeAmount (optional): Original fee amount for tracking purposes
+      - feeType (optional): Type of fee applied (percentage_target, percentage_source, etc.)
+      
       **How it works:**
-      - Creates SELL transaction (source asset decreases)
-      - Creates BUY transaction (target asset increases)
+      - Creates SELL transaction using sourceAmountSpent as the real amount deducted
+      - Creates BUY transaction using targetAmountReceived as the real amount received
+      - No automatic calculations - uses your real transaction values
       - Links both transactions for integrity
       - Validates exchange rules and balances
-      - Maintains conservation of value principle
       
-      **Example:** Buying 1 BTC with 50,000 BRL (both on Binance)
-      - Portfolio BRL: -50,000 BRL (SELL)
-      - Portfolio BTC: +1 BTC (BUY)
+      **Example:** Buying 0.999 BTC by spending 50,020 BRL (with 20 BRL fee)
+      - sourceAmountSpent: 50,020 (total deducted from BRL portfolio)
+      - targetAmountReceived: 0.999 (actual BTC received)
+      - feeAmount: 20 (optional, for tracking)
+      - feeType: "fixed_source" (optional, for tracking)
+      
+      **Benefits:**
+      - No ambiguity about fee calculations
+      - Works with any exchange rate or fee structure
+      - Reflects your actual transaction amounts
+      - Automatic fee calculation from the difference (if market rates are available)
     `,
   })
   @ApiResponse({

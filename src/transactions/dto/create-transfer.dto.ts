@@ -7,11 +7,14 @@ import {
   IsOptional,
   IsPositive,
   IsString,
+  IsEnum,
   MaxLength,
   Min,
 } from 'class-validator';
 import { Type } from 'class-transformer';
 import { DecimalPrecision } from '../../decorators/decimal-precision.decorator';
+import { FeeType } from '../../constants/fee-types.constants';
+import { IsFeeConsistent } from '../../decorators/fee-validation.decorator';
 
 export class CreateTransferDto {
   @ApiProperty({
@@ -62,7 +65,18 @@ export class CreateTransferDto {
   @DecimalPrecision(8, {
     message: 'Fee cannot have more than 8 decimal places',
   })
+  @IsFeeConsistent()
   fee?: number;
+
+  @ApiProperty({
+    description: 'Fee type (required if fee is provided)',
+    enum: FeeType,
+    required: false,
+    example: FeeType.FIXED_SOURCE,
+  })
+  @IsOptional()
+  @IsEnum(FeeType, { message: 'Fee type must be a valid fee type' })
+  feeType?: FeeType;
 
   @ApiProperty({
     description: 'Notes (optional)',
